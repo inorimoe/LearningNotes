@@ -16,6 +16,6 @@ int lengthOfLastWord(char* s) {
         ++s;
     }
     if(*worLeft==' ')return 0;
-    //字符串如果为零空白，worleft与worright会在字符串最左端不动
+    //字符串如果为空白，worleft与worright会在字符串最左端不动
     return worRight-worLeft+1;
 }
