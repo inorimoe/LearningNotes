@@ -4,7 +4,7 @@
     2. CppNotes
     3. JavaNotes
 #### Coding:  
-    1. Introduction to Algorithms  
+    1. Introduction to Algorithms(Exercises)
     2. LeetCode 
     3. Algorithm(Implement the algorithm by myself)
 #### PS:  
