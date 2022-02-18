@@ -1,11 +1,12 @@
 # Finory's Blog  #
 #### Learn Note:  
-    1. Git Command  
-    2. CppNotes
-    3. JavaNotes
+- [Git Command](Git_Command.txt)
+- [CppNotes](CppNotes)
+- [JavaNotes](JavaNotes)
+- [GDB](GDB.md)
 #### Coding:  
-    1. Introduction to Algorithms(Exercises)
-    2. LeetCode 
-    3. Algorithm(Implement the algorithm by myself)
+- [Introduction to Algorithms(Exercises)](Introduction_to_Algorithms)
+- [LeetCode](LeetCode)
+- [Algorithm(Implement the algorithm by myself)](Algorithm)
 #### PS:  
     不过是渣渣( ﾟ 3ﾟ)=☕
