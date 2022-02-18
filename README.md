@@ -2,7 +2,7 @@
 #### Learn Note:  
     1. Git Command  
     2. CppNotes
-    3. JavaNotes
+    [JavaNotes](JavaNotes)
 #### Coding:  
     1. Introduction to Algorithms(Exercises)
     2. LeetCode 
