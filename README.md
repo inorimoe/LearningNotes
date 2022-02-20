@@ -4,6 +4,8 @@
 - [CppNotes](CppNotes)
 - [JavaNotes](JavaNotes)
 - [GDB](GDB.md)
+- [Bash](base_shell.md)
+- [DataStruct_And_Algorithm](DataStruct_And_Algorithm)
 #### Coding:  
 - [Introduction to Algorithms(Exercises)](Introduction_to_Algorithms)
 - [LeetCode](LeetCode)
