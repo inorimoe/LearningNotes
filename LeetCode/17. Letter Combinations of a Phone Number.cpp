@@ -2,7 +2,7 @@ class Solution {
 public:
     const vector<string> pad = {
         "", "", "abc", "def", "ghi", "jkl",
-        "mno", "pqrs", "tuv", "wxyz"
+        "mno", "pqrs", "tuv", "wxyz" 
     };
     vector<string> letterCombinations(string digits) {
         if (digits.empty()) return {};
