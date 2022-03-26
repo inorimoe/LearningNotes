@@ -29,11 +29,10 @@ public:
     }
 };
 
-//官方题解，最优解
-class Solution {
+//官方题解，最优解class Solution {
 public:
     double findMedianSortedArrays(vector<int>& arr1, vector<int>& arr2) {
-        if(arr1.size() < arr2.size())
+        if(arr1.size() > arr2.size())
             return findMedianSortedArrays(arr2, arr1);
         int lo = 0;
         int hi = arr1.size();
@@ -51,13 +50,13 @@ public:
             int mid_j = (j < n ? arr2[j] : INT_MAX );
             int mid_jm1 = ( 0 < j ? arr2[j-1] : INT_MIN);
             if (mid_im1 <= mid_j){
-                midA = max(mid_jm1, mid_jm1);
+                midA = max(mid_jm1, mid_im1);
                 midB = min(mid_i, mid_j);
                 lo = i+1;
             } else {
                 hi = i-1;                
             }
         }
-        return (m+n)&1 ? midA:(midA + midB)/2.0;
+        return (m+n)&1 ? midA : (midA + midB)/2.0 ;
     }
 };
