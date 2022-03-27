@@ -29,7 +29,8 @@ public:
     }
 };
 
-//官方题解，最优解class Solution {
+//官方题解，最优解
+class Solution {
 public:
     double findMedianSortedArrays(vector<int>& arr1, vector<int>& arr2) {
         if(arr1.size() > arr2.size())
