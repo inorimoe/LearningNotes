@@ -139,4 +139,34 @@ RT max (T1 a, T2 b);
 ...
 ::max<double>(4, 7.2) //OK: 返回类型是 double，T1 和 T2 根据调用参数推断
 ```
-### 返回类型推断(C++14)
+### 返回类型推断(C++11\C++14)
+1. **C++14**返回类型不需要声明为任何模板参数类型,需要声明返回类型为`auto`;
+必须要有推断返回类型的返回语句，而且多个返回语句之间的推断结果必须一致。
+```C++
+template<typename T1, typename T2>
+auto max (T1 a, T2 b){return  b < a ? a : b;};
+```   
+2. **C++11**尾置返回类型, 允许使用函数的调用参数;
+```C++
+template<typename T1, typename T2>
+auto max (T1 a, T2 b) -> decltype(b<a?a:b)
+{return b < a ? a : b;}
+```
+有个严重的问题：由于 T 可能是引用类型，返回类型就也可能被推断为引用类型。
+☕初始化 auto 变量的时候其类型总是退化之后的类型。当函数返回类型是 auto 的时候也需要保持一致☕
+因此应该返回的是 decay 后的 T.
+```C++
+#include <type_traits>
+template<typename T1, typename T2>
+auto max (T1 a, T2 b) -> typename std::decay<decltype(true? a:b)>::type
+//类型萃取（type trait）std::decay<>，它返回其 type 成员作为目标类型。
+//由于其 type 成员是一个类型，为了获取其结果，需要用关键字 typename 修饰这个表达式。
+{return b < a ? a : b;}
+...
+int i = 42;
+int const& ir = i; // ir 是 i 的引用
+auto a = ir; // a 的类型是 it decay 之后的类型，也就是int
+auto b = max(i,ir); //b 的类型也是int
+```
+### 将返回类型声明为公共类型
+
