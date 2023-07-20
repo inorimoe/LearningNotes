@@ -350,7 +350,7 @@ int main()
   ::max<>(7, 42);     // calls max<int> (by argument deduction)
 ```
 
-2. a由于**函数模板的模板参数推断时不允许自动类型转换，而非模板函数是允许的**.因此最后一个调用会选择非模板参函数;
+2. 由于**函数模板的模板参数推断时不允许自动类型转换，而非模板函数是允许的**.因此最后一个调用会选择非模板参函数;
  
 ```C++
 ::max('a', 42.7);     //only the nontemplate function allows nontrivial  conversions
