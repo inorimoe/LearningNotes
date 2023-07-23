@@ -15,6 +15,11 @@
   - [7. 函数模板的重载](#7-函数模板的重载)
   - [8. 总结](#8-总结)
 - [类模板](#类模板)
+  - [类模板的实现](#类模板的实现)
+    - [声明类模板](#声明类模板)
+  - [类模板的使用](#类模板的使用)
+  - [部分使用类模板](#部分使用类模板)
+  - [浅析友元](#浅析友元)
 
 ---
 
@@ -329,51 +334,51 @@ int main()
 }
 ```
 
-1. **一个非模板函数可以和一个与其同名的函数模板共存，并且这个同名的函数模板可以被实例化为与非模板函数具有相同类型的调用参数**。
-   - 函数调用时**匹配度相同，模板解析过程将优先选择非模板函数**。
-   - 若显式指定模板列表，则优先调用模板函数。
+1.  **一个非模板函数可以和一个与其同名的函数模板共存，并且这个同名的函数模板可以被实例化为与非模板函数具有相同类型的调用参数**。
+    - 函数调用时**匹配度相同，模板解析过程将优先选择非模板函数**。
+    - 若显式指定模板列表，则优先调用模板函数。
 
-```C++
-  ::max(7, 42);       // both int values match the nontemplate function perfectly
-```
+    ```C++
+    ::max(7, 42);       // both int values match the nontemplate function perfectly
+    ```
 
-如果模板可以实例化出一个更匹配的函数，那么就会选择这个模板;
+    如果模板可以实例化出一个更匹配的函数，那么就会选择这个模板;
 
-```C++
-  ::max(7.0, 42.0);   // calls the max<double> (by argument deduction)
-  ::max('a', 'b');    // calls the max<char> (by argument deduction)
-```
+    ```C++
+    ::max(7.0, 42.0);   // calls the max<double> (by argument deduction)
+    ::max('a', 'b');    // calls the max<char> (by argument deduction)
+    ```
 
-显式指定一个空的模板列表。这表明它会被解析成一个模板调用, 其所有的模板参数会被通过调用参数推断出来;
+    显式指定一个空的模板列表。这表明它会被解析成一个模板调用, 其所有的模板参数会被通过调用参数推断出来;
 
-```C++
-  ::max<>(7, 42);     // calls max<int> (by argument deduction)
-```
+    ```C++
+    ::max<>(7, 42);     // calls max<int> (by argument deduction)
+    ```
 
 2. 由于**函数模板的模板参数推断时不允许自动类型转换，而非模板函数是允许的**.因此最后一个调用会选择非模板参函数;
  
-```C++
-::max('a', 42.7);     //only the nontemplate function allows nontrivial  conversions
-```
+    ```C++
+    ::max('a', 42.7);     //only the nontemplate function allows nontrivial  conversions
+    ```
 
 3. 调用函数模板时，**必须保证函数模板已经在前面某处定义**。
 
-```C++
-int max(int a, int b) {
-    return a > b ? a : b;
-}
-template <typename T>
-T max(T a, T b, T c) {
-    return max(max(a,b),c);  //T为int时，并不会调用max<int>,而是调用非模板函数max(int,int)
-}
-template <typename T>
-T max(T a, T b) {
-    return a > b ? a : b;
-}
-...
-max(1, 2, 3);  // 最终调用非模板函数max(int,int)比较
-max("sjx", "wyl", "shh"); //error,在前方找不到二元的模板函数max<const char *>的定义,
-```
+    ```C++
+    int max(int a, int b) {
+        return a > b ? a : b;
+    }
+    template <typename T>
+    T max(T a, T b, T c) {
+        return max(max(a,b),c);  //T为int时，并不会调用max<int>,而是调用非模板函数max(int,int)
+    }
+    template <typename T>
+    T max(T a, T b) {
+        return a > b ? a : b;
+    }
+    ...
+    max(1, 2, 3);  // 最终调用非模板函数max(int,int)比较
+    max("sjx", "wyl", "shh"); //error,在前方找不到二元的模板函数max<const char *>的定义,
+    ```
 
 ---
 
@@ -391,3 +396,140 @@ max("sjx", "wyl", "shh"); //error,在前方找不到二元的模板函数max<con
 ---
 
 # 类模板  
+
+## 类模板的实现
+
+以一个栈（stack）的例子来展示类模板的使用:
+
+```C++
+#include <vector>
+#include <cassert>
+template<typename T>
+class Stack {
+private:
+    std::vector<T> elems; // elements
+public:
+    void push(T const& elem); // push element
+    void pop(); // pop element
+    T const& top() const; // return top element
+    bool empty() const { // return whether the stack is empty
+        return elems.empty();
+    }
+};
+template<typename T>
+void Stack<T>::push (T const& elem)
+{
+    elems.push_back(elem); // append copy of passed elem
+}
+template<typename T>
+void Stack<T>::pop ()
+{
+    assert(!elems.empty());
+    elems.pop_back(); // remove last element
+}
+template<typename T>
+T const& Stack<T>::top () const
+{
+    assert(!elems.empty());
+    return elems.back(); // return copy of last element
+}
+```
+
+### 声明类模板  
+
+1. 类模板不可以定义在函数作用域或者块作用域内部，通常定义在 global/namespace/类作用域。  
+2. 在类模板中使用类名 (不带模板参数)，表明这个内部类的模板参数类型和模板类的参数类型相同[(13.2.3注入类型)](#注入类型)。
+   ```C++
+    template<typename T>
+    class Stack {
+    ...
+    Stack (Stack const&); // copy constructor
+    Stack (Stack<T> const&); // copy constructor
+    ---
+    Stack& operator= (Stack const&); // assignment operators
+    Stack<T>& operator= (Stack<T> const&); // assignment operator
+    ...
+    };
+   ```
+
+## 类模板的使用
+
+1. c++17前，使用类模板都需要**显式**指定模板参数`type<T>`。 C++17有**类参数模板推导**。
+
+2. **类模板的成员函数只有在调用的时候才会实例化。**
+3. 如果一个类模板有 static 成员，对于使用类模板的每个类型实例，相应的静态成员也只会被实例化一次。
+
+## 部分使用类模板
+
+1. 类模板实例化时，模板参数只需要支持被实例化部分所有用到的操作。
+
+    ```C++
+    template<typename T>
+    class Stack {
+    ...
+        void print(std::ostream& strm) const {
+            for (T const& elem : elems) {
+                strm << elem << ' '; // 对每个元素使用<<
+            }
+        }
+    };
+    int main()
+    {
+        // 只会实例化类模板中的push 和 print函数
+        Stack<int> s;
+        s.push(3);
+        s.print(std::cout);
+
+        // Stack<int>未重载<<运算符，实例化print函数时失败
+        Stack<Stack<int>> ss;
+        ss.push(s);
+        ss.print(std::cout);
+        return 0;
+    }
+    ```
+
+2. c++11 开始，可以通过 static_assert 和 type_traits 做一些简单的类型检查
+
+    ```C++
+    template <typename T>
+    class C
+    {
+        static_assert(std::is_default_constructible<T>::value,
+        "class C requires default contructible");
+    };
+    ```  
+
+## 浅析友元  
+浅析友元，深入了解见[（第二部分深入了解模板）12.5 友元](#12.5友元)  
+
+```C++
+template<typename T>
+class Stack {
+…
+    //一般打印函数的两种实现思路
+    void print() (std::ostream& strm) const {…}
+    friend std::ostream& operator<< (std::ostream& strm, Stack<T> const& s) {
+        /* operator<<并不是一个函数模板（对于在模板类内定义这一情况），
+           而是在需要的时候，随类模板实例化出来的一个常规函数. */
+        s.print(strm);
+        return strm;
+    }
+};
+```
+
+先声明一个友元函数，然后再去定义它，事实上有两种选择：
+
+1. 隐式的声明一个新的函数模板，但是必须使用一个不同的模板参数，比如 U。
+
+    ```C++
+    template<typename T>
+    class Stack {
+        …
+        template<typename U>
+        friend std::ostream& operator<< (std::ostream&, Stack<U> const&);
+    };
+    ```
+
+    无论是继续使用 T 还是省略掉模板参数声明，都不可以（要么是里面的 T 隐藏了外面的 T，要么是在命名空间作用域内声明了一个非模板函数）。  
+
+2. 
