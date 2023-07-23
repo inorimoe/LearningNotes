@@ -20,6 +20,7 @@
   - [类模板的使用](#类模板的使用)
   - [部分使用类模板](#部分使用类模板)
   - [浅析友元](#浅析友元)
+  - [类模板的特化](#类模板的特化)
 
 ---
 
@@ -438,7 +439,9 @@ T const& Stack<T>::top () const
 ### 声明类模板  
 
 1. 类模板不可以定义在函数作用域或者块作用域内部，通常定义在 global/namespace/类作用域。  
-2. 在类模板中使用类名 (不带模板参数)，表明这个内部类的模板参数类型和模板类的参数类型相同[(13.2.3注入类型)](#注入类型)。
+
+2. 在类模板中使用类名 (不带模板参数)，表明这个内部类的模板参数类型和模板类的参数类型相同 [(13.2.3注入类型)](#注入类型)。
+
    ```C++
     template<typename T>
     class Stack {
@@ -532,4 +535,21 @@ class Stack {
 
     无论是继续使用 T 还是省略掉模板参数声明，都不可以（要么是里面的 T 隐藏了外面的 T，要么是在命名空间作用域内声明了一个非模板函数）。  
 
-2. 
+2. 使用前向声明（Forward Declaration）。先将Stack< T >的operator<<声明为一个模板，这要求先对 Stack < T > 进行声明:  
+   
+    ```c++
+    template<typename T>
+    class Stack;
+    template<typename T>
+    std::ostream& operator<< (std::ostream&, Stack<T> const&);
+    ...
+    template<typename T>
+    class Stack {
+        ...
+        friend std::ostream& operator<< <T> (std::ostream&, Stack<T> const&);
+    }       
+    ``` 
+
+    注意函数名operator<<后面的`<T>`。 因此，我们将非成员函数模板的特化声明为 friend，如果没有 <T>，我们将声明一个新的非模板函数。详见[（第二部分深入了解模板）12.5.2 函数友元](#12.5.2函数友元)
+
+## 类模板的特化
