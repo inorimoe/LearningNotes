@@ -17,10 +17,12 @@
 - [类模板](#类模板)
   - [类模板的实现](#类模板的实现)
     - [声明类模板](#声明类模板)
+    - [成员函数的实现](#成员函数的实现)
   - [类模板的使用](#类模板的使用)
   - [部分使用类模板](#部分使用类模板)
   - [浅析友元](#浅析友元)
-  - [类模板的特化](#类模板的特化)
+  - [类模板特化(全特化)](#类模板特化全特化)
+  - [类模板偏特化](#类模板偏特化)
 
 ---
 
@@ -455,12 +457,20 @@ T const& Stack<T>::top () const
     };
    ```
 
+### 成员函数的实现  
+
+- 参考[类模板的实现](#类模板的实现)
+
+---
+
 ## 类模板的使用
 
 1. c++17前，使用类模板都需要**显式**指定模板参数`type<T>`。 C++17有**类参数模板推导**。
 
 2. **类模板的成员函数只有在调用的时候才会实例化。**
 3. 如果一个类模板有 static 成员，对于使用类模板的每个类型实例，相应的静态成员也只会被实例化一次。
+
+---
 
 ## 部分使用类模板
 
@@ -501,6 +511,8 @@ T const& Stack<T>::top () const
         "class C requires default contructible");
     };
     ```  
+
+---  
 
 ## 浅析友元  
 浅析友元，深入了解见[（第二部分深入了解模板）12.5 友元](#12.5友元)  
@@ -552,4 +564,60 @@ class Stack {
 
     注意函数名operator<<后面的`<T>`。 因此，我们将非成员函数模板的特化声明为 friend，如果没有 <T>，我们将声明一个新的非模板函数。详见[（第二部分深入了解模板）12.5.2 函数友元](#12.5.2函数友元)
 
-## 类模板的特化
+## 类模板特化(全特化)
+
+要对类模板进行特化，必须在类声明中以 **template<>** 为前导，并**指定类模板要特化的类型**。这些类型**作为模板参数使用**，必须在类名之后直接指定：
+
+```C++
+template<>
+class Stack<std::string> { //Stack<T>类模板的特化
+    ...
+}
+```
+
+对类模板进行特化可以优化某些类型的实现，或者避免某些类型在类模板实例化中的错误行为。
+
+- 如果要对一个类模板进行专门化，则必须特化所有成员函数。
+- 可以对类模板中的单个成员函数进行特化，但是就不能再对特化成员所属的整个类模板实例进行特化。
+
+对于这些特化，成员函数的任何定义都必须定义为 "普通 "成员函数，T 的每一次出现都由特化类型代替：
+
+```C++
+void Stack<std::string>::push (std::string const& elem){
+    elems.push_back(elem); // append copy of passed elem
+}
+```
+下面是 std::string 类型的 Stack<> 特化的完整示例, 它的一些成员函数做了优化:
+```C++
+#include "stack1.hpp"
+#include <deque>
+#include <string>
+#include <cassert>
+template<>
+class Stack<std::string> {
+private:
+    std::deque<std::string> elems;  // elements
+public:
+    void push(std::string const&);  // push element
+    void pop();// pop element
+    std::string const& top() const; // return top element
+    bool empty() const {            // return whether the stack is empty
+        return elems.empty();
+    }
+};
+void Stack<std::string>::push (std::string const& elem){
+    elems.push_back(elem);  // append copy of passed elem
+}
+void Stack<std::string>::pop (){
+    assert(!elems.empty());
+    elems.pop_back(); // remove last element
+}
+std::string const& Stack<std::string>::top () const {
+    assert(!elems.empty());
+    return elems.back(); // return copy of last element
+}
+```
+
+---
+
+## 类模板偏特化
