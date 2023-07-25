@@ -23,6 +23,7 @@
   - [浅析友元](#浅析友元)
   - [类模板特化(全特化)](#类模板特化全特化)
   - [类模板偏特化](#类模板偏特化)
+    - [多模板参数的部分特例化](#多模板参数的部分特例化)
 
 ---
 
@@ -564,6 +565,8 @@ class Stack {
 
     注意函数名operator<<后面的`<T>`。 因此，我们将非成员函数模板的特化声明为 friend，如果没有 <T>，我们将声明一个新的非模板函数。详见[（第二部分深入了解模板）12.5.2 函数友元](#12.5.2函数友元)
 
+---
+
 ## 类模板特化(全特化)
 
 要对类模板进行特化，必须在类声明中以 **template<>** 为前导，并**指定类模板要特化的类型**。这些类型**作为模板参数使用**，必须在类名之后直接指定：
@@ -621,3 +624,56 @@ std::string const& Stack<std::string>::top () const {
 ---
 
 ## 类模板偏特化
+
+> 类模板特化时，可以**只特化部分参数**（或者说对参数进行部分特化）。
+
+例如，我们可以为指针我们定义了一个类模板，仍然为T参数化，但特化用来处理指针的类模板（Stack＜T*＞）。
+
+```C++
+template<typename T>
+class Stack<T*> { };
+```
+
+以下是该Stack模板类的T*偏特化实现：
+
+```C++
+#include "stack.hpp"
+// partial specialization of class Stack<> for pointers:
+template<typename T>
+class Stack<T*> {
+private:
+    std::vector<T*> elems; // elements
+public:
+    void push(T*); // push element
+    T* pop(); // pop element
+    T* top() const; // return top element
+    bool empty() const { // return whether the stack is empty
+        return elems.empty();
+    }
+};
+
+template<typename T>
+void Stack<T*>::push (T* elem)
+{
+    elems.push_back(elem); // append copy of passed elem
+}
+
+template<typename T>
+T* Stack<T*>::pop ()
+{
+    assert(!elems.empty());
+    T* p = elems.back();
+    elems.pop_back(); // remove last element
+    return p; // and return it (unlike in the general case)
+}
+
+template<typename T>
+T* Stack<T*>::top () const
+{
+    assert(!elems.empty());
+    return elems.back(); // return copy of last element
+}
+```
+注意，特化之后的函数接口可能不同。例如，返回 T 类型可以自动回收内存（RAII），而特化为 T* 可能需要手动回收内存。
+
+### 多模板参数的部分特例化  
