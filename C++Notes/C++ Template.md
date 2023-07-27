@@ -25,6 +25,11 @@
   - [类模板偏特化](#类模板偏特化)
     - [多模板参数的部分特例化](#多模板参数的部分特例化)
   - [类模板的默认参数](#类模板的默认参数)
+  - [类型别名](#类型别名)
+    - [类型定义和别名声明](#类型定义和别名声明)
+    - [Alias Templates（别名模板）](#alias-templates别名模板)
+    - [Alias Templates for Member Types（class 成员的别名模板）](#alias-templates-for-member-typesclass-成员的别名模板)
+    - [Type Traits Suffix\_t （Suffix\_t 类型萃取）](#type-traits-suffix_t-suffix_t-类型萃取)
 
 ---
 
@@ -720,3 +725,87 @@ class MyClass<T*, T*> {
 ---
 ## 类模板的默认参数  
 
+对于函数模板，可以为类模板参数设置默认值。
+***声明定义:***
+```C++
+#include <vector>
+#include <cassert>
+template<typename T, typename Cont = std::vector<T>>
+class Stack {
+private:
+    Cont elems; // elements
+public:
+    void push(T const& elem); // push element
+    void pop(); // pop element
+    T const& top() const; // return top element
+    bool empty() const { // return whether the stack is
+        emptyreturn elems.empty();
+    }
+};
+//现在有两个模板参数，因此下面每个成员函数的定义也应该包含两个模板参数：
+template<typename T, typename Cont>
+void Stack<T,Cont>::push (T const& elem)
+{
+    elems.push_back(elem); // append copy of passed elem
+}
+template<typename T, typename Cont>
+void Stack<T,Cont>::pop ()
+{
+    assert(!elems.empty());
+    elems.pop_back(); // remove last element
+}
+template<typename T, typename Cont>
+T const& Stack<T,Cont>::top () const
+{
+    assert(!elems.empty());
+    return elems.back(); // return copy of last element
+}
+```
+
+***使用:***
+```C++
+#include "stack3.hpp"
+#include <iostream>
+#include <deque>
+int main()
+{
+    // stack of ints:
+    Stack<int> intStack;
+
+    // stack of doubles using a std::deque<> to manage the elements
+    Stack<double,std::deque<double>> dblStack;
+
+    // manipulate int stack
+    intStack.push(7);
+    std::cout << intStack.top() << '\n';
+    intStack.pop();
+
+    // manipulate double stack
+    dblStack.push(42.42);
+    std::cout << dblStack.top() << '\n';
+    dblStack.pop();
+}
+```
+
+## 类型别名
+
+### 类型定义和别名声明
+
+在这两种情况下我们都只是为一个已经存在的类型定义了一个别名，并没有定义新的类型， 两者等价。
+
+1. 通过使用关键字 **typedef**.
+2. 通过使用关键字 **using**(C++11 起).
+
+```C++
+typedef Stack<int> IntStack; // typedef
+void foo (IntStack const& s); // s is stack of ints
+IntStack istack[10]; // istack is array of 10 stacks of ints
+
+using IntStack = Stack <int>; // alias declaration
+void foo (IntStack const& s); // s is stack of ints
+IntStack istack[10]; // istack is array of 10 stacks of ints
+```
+
+### Alias Templates（别名模板）
+### Alias Templates for Member Types（class 成员的别名模板）
+### Type Traits Suffix_t （Suffix_t 类型萃取）
