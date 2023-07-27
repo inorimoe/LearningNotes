@@ -24,6 +24,7 @@
   - [类模板特化(全特化)](#类模板特化全特化)
   - [类模板偏特化](#类模板偏特化)
     - [多模板参数的部分特例化](#多模板参数的部分特例化)
+  - [类模板的默认参数](#类模板的默认参数)
 
 ---
 
@@ -674,6 +675,48 @@ T* Stack<T*>::top () const
     return elems.back(); // return copy of last element
 }
 ```
+
 注意，特化之后的函数接口可能不同。例如，返回 T 类型可以自动回收内存（RAII），而特化为 T* 可能需要手动回收内存。
 
 ### 多模板参数的部分特例化  
+
+类模板还可以将多个模板参数部分特化，例如下面的类模板：
+
+```C++
+template<typename T1, typename T2>
+class MyClass {
+...
+};
+// partial specialization: both template parameters have same type
+template<typename T>
+class MyClass<T, T> {
+...
+};
+// partial specialization: second type is int
+template<typename T>
+class MyClass<T, int> {
+...
+};
+// partial specialization: both template parameters are pointer types
+template<typename T1, typename T2>
+class MyClass<T1*, T2*> {
+...
+};
+
+MyClass<int, float> mif;     // uses MyClass<T1,T2>
+MyClass<float, float> mff;   // uses MyClass<T,T>
+MyClass<float, int> mfi;     // uses MyClass<T,int>
+MyClass<int*, float*> mp;    // uses MyClass<T1*,T2*>
+```
+
+若多个偏特化都匹配调用，则声明有歧义。要解决歧义，可以为相同类型的指针提供偏特化实现:
+
+```C++
+template<typename T>
+class MyClass<T*, T*> {
+…
+};
+```
+---
+## 类模板的默认参数  
+
