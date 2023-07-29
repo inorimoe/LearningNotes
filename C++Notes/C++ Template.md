@@ -27,9 +27,9 @@
   - [类模板的默认参数](#类模板的默认参数)
   - [类型别名](#类型别名)
     - [类型定义和别名声明](#类型定义和别名声明)
-    - [Alias Templates（别名模板）](#alias-templates别名模板)
-    - [Alias Templates for Member Types（class 成员的别名模板）](#alias-templates-for-member-typesclass-成员的别名模板)
-    - [Type Traits Suffix\_t （Suffix\_t 类型萃取）](#type-traits-suffix_t-suffix_t-类型萃取)
+    - [模板别名](#模板别名)
+    - [类成员的模板别名](#类成员的模板别名)
+    - [Suffix\_t 类型萃取](#suffix_t-类型萃取)
 
 ---
 
@@ -806,6 +806,18 @@ void foo (IntStack const& s); // s is stack of ints
 IntStack istack[10]; // istack is array of 10 stacks of ints
 ```
 
-### Alias Templates（别名模板）
-### Alias Templates for Member Types（class 成员的别名模板）
-### Type Traits Suffix_t （Suffix_t 类型萃取）
+### 模板别名  
+不同于 typedef， **别名声明 using**也可以被模板化，这样就可以给一组类型取一个方便的名字。
+```C++
+template<typename T>
+using DequeStack = Stack<T, std::deque<T>>;
+...
+//
+static_assert(std::is_same_v<DequeStack<int>, Stack<int, std::deque<int>>> == true);
+```
+模板只能在**全局global / 命名空间namespace**作用域或类声明内部声明和定义.
+
+### 类成员的模板别名  
+
+### Suffix_t 类型萃取
+
