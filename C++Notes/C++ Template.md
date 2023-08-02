@@ -29,7 +29,7 @@
     - [类型定义和别名声明](#类型定义和别名声明)
     - [模板别名](#模板别名)
     - [类成员的模板别名](#类成员的模板别名)
-    - [Suffix\_t 类型萃取](#suffix_t-类型萃取)
+    - [类型Traits后缀\_t](#类型traits后缀_t)
 
 ---
 
@@ -807,7 +807,9 @@ IntStack istack[10]; // istack is array of 10 stacks of ints
 ```
 
 ### 模板别名  
+
 不同于 typedef， **别名声明 using**也可以被模板化，这样就可以给一组类型取一个方便的名字。
+
 ```C++
 template<typename T>
 using DequeStack = Stack<T, std::deque<T>>;
@@ -815,9 +817,41 @@ using DequeStack = Stack<T, std::deque<T>>;
 //
 static_assert(std::is_same_v<DequeStack<int>, Stack<int, std::deque<int>>> == true);
 ```
+
 模板只能在**全局global / 命名空间namespace**作用域或类声明内部声明和定义.
 
 ### 类成员的模板别名  
 
-### Suffix_t 类型萃取
+给类模板的成员类型定义一个快捷方式.
 
+```C++
+//"..."是任意类型。
+//第一种方法
+template<typename T> struct MyType {
+    typedef ... iterator;
+};
+//第二种方法
+template<typename T> struct MyType {
+    using iterator = ...;
+};
+//第三种方法
+template<typename T>
+using MyTypeIterator = typename MyType<T>::iterator;
+//第三种方法的两种使用方式，二者等价。
+MyTypeIterator<T> pos;//⭐
+typename MyType<T>::iterator pos;
+```
+
+### 类型Traits后缀_t
+
+C++14 后，标准库使用这种`_t`方式为库中的所有类型定义了快捷方式。
+
+```C++
+std::add_const_t<T> // since C++14
+typename std::add_const<T>::type // since C++11
+
+//标准库这样定义：
+namespace std {
+    template<typename T> using add_const_t = typename add_const<T>::type;
+}
+```
