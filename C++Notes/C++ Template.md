@@ -30,6 +30,10 @@
     - [模板别名](#模板别名)
     - [类成员的模板别名](#类成员的模板别名)
     - [类型Traits后缀\_t](#类型traits后缀_t)
+  - [类模板的参数推导](#类模板的参数推导)
+    - [字符串常量推断的类模板参数](#字符串常量推断的类模板参数)
+    - [推断指引(Deduction Guides) c++17](#推断指引deduction-guides-c17)
+  - [聚合类的模板化](#聚合类的模板化)
 
 ---
 
@@ -855,3 +859,76 @@ namespace std {
     template<typename T> using add_const_t = typename add_const<T>::type;
 }
 ```
+
+---
+
+## 类模板的参数推导  
+
+C++17 以前，必须将所有模板参数类型传递给类模板 (除非有默认值)。
+C++17 开始，若**构造函数**能够推导出所有模板参数 (没有默认值)，则可以不用显式定义模板参数`<T>`。  
+注意，与函数模板不同，**类模板无法部分的推断**模板类型参数（比如在显式的指定了一部分类模板参数的情况下）
+
+通过提供一个接受初始化参数的构造函数,就可以推断出 Stack 模板的类型:
+
+```C++
+template<typename T>
+class Stack {
+private:
+    std::vector<T> elems; // elements
+public:
+    Stack () = default;
+    Stack (T const& elem): elems({elem}) {}; // initialize stack with one element
+};
+···
+Stack intStack = 0; // Stack<int> deduced since C++17
+```
+
+### 字符串常量推断的类模板参数  
+
+***类型推导时，构造函数参数应该按照值传递，而非按引用。引用传递会导致类型推断时无法进行 decay 转化。***
+
+* 通过引用传递模板类型 T 的参数时，参数不会衰变 (这里的衰变是指，将原始数组类型转换为相应的原始指针类型的机制)。
+
+* 按值传递模板类型 T 的参数时，参数会衰变，将原始数组类型转换为相应的原始指针类型。
+
+```C++
+Stack stringStack = "bottom"; // Stack<char const[7]> deduced since C++17
+Stack<char const[7]> //引用传递时，T被推断为char const[7]，不能 push 不同大小的字符串，因为其有不同的类型。
+Stack<char const*> //按值传递,构造函数的调用参数 T 推导为 char const*，因此整个类将推导为 Stack<char const*>。
+```
+
+### 推断指引(Deduction Guides) c++17 
+
+c++17 支持提供推断指引来提供额外的推断规则，推断指引一般紧跟类模板定义之后。
+```C++
+//此处为推断指引语法
+// 1.模板：
+template<class U>
+S(U) -> S<typename U::type>;
+
+// 2.非模板：
+// 推断指引，传递字符串常量时会被推断为string
+Stack<const char*> -> Stack<std::string>;
+```
+
+推断指引 的基本形式如下：
+
+> deduction-guide:
+> explicit(opt) template-name ( parameter-declaration-clause ) -> simple-template-id;
+
+有几个对于Deduction Guides的基本要求:
+
+- template-name 应该和 simple-template-id 有相同的标识符。  
+- **推断指引 应该和与其关联的模板有相同的作用域，如果是一个成员类模板，则还要求有相同的访问权限。**
+- 同一个转换单元里的两个 推断指引 声明不得有相同的 parameter-declaration-clauses。
+
+```C++
+//用法
+explicit S(bool) -> S<int>;// S a{true};
+S(int) -> S<int>;// S a{123};
+template<typename T = int> S(int) -> S<char>;// S a{1.0};
+```
+
+---
+
+## 聚合类的模板化  
