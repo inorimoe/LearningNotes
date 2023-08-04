@@ -34,6 +34,7 @@
     - [字符串常量推断的类模板参数](#字符串常量推断的类模板参数)
     - [推断指引(Deduction Guides) c++17](#推断指引deduction-guides-c17)
   - [聚合类的模板化](#聚合类的模板化)
+  - [总结](#总结)
 
 ---
 
@@ -600,7 +601,9 @@ void Stack<std::string>::push (std::string const& elem){
     elems.push_back(elem); // append copy of passed elem
 }
 ```
+
 下面是 std::string 类型的 Stack<> 特化的完整示例, 它的一些成员函数做了优化:
+
 ```C++
 #include "stack1.hpp"
 #include <deque>
@@ -932,3 +935,45 @@ template<typename T = int> S(int) -> S<char>;// S a{1.0};
 ---
 
 ## 聚合类的模板化  
+
+聚合类 Aggregate Class：
+
+- 类的成员变量访问权限必须都是public；
+- 类中不能出现任何构造函数；
+- 没有基类或虚函数；
+- 没有类内初始化；
+
+```C++
+template <typename T>
+struct Aggregate
+{
+    T val;
+    std::string comment;
+};
+
+Aggregate <int> ag;
+ag.val = 42;
+ag.comment = "sjx";
+```
+
+C++17 后，甚至可以为聚合类模板定义推断指引。
+聚合类没有用于执行推断的构造函数，所以想要初始化推断，则必须使用`推断指引`，
+
+```C++
+ Aggregate(char const*, char const*) -> Aggregate<std::string>;
+ Aggregate ag2 = {"hello", "initial value"};
+```
+
+---
+
+## 总结  
+
+- 类模板是一个类，在实现时会保留一个或多个类型参数。
+- 要使用类模板，需要将开放的类型作为模板参数传递。然后，类模板就会针对这些类型进行实例化（和编译）。
+- 对于类模板，只有那些被调用的成员函数才会被实例化。
+- 可以为某些类型特化类模板。
+- 可以对某些类型的类模板进行部分特化(偏特化)。
+- 自 C++17 起，类模板参数可自动从构造函数中推导出来。
+- 可以定义聚合类模板。
+- 若声明为按值调用，则模板类型的调用参数会衰变。
+- 模板只能在全局/命名空间作用域或类声明中声明和定义。
