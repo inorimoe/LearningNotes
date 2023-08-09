@@ -35,6 +35,8 @@
     - [推断指引(Deduction Guides) c++17](#推断指引deduction-guides-c17)
   - [聚合类的模板化](#聚合类的模板化)
   - [总结](#总结)
+- [非类型模板参数](#非类型模板参数)
+  - [类模板的非类型参数](#类模板的非类型参数)
 
 ---
 
@@ -526,7 +528,8 @@ T const& Stack<T>::top () const
 
 ---  
 
-## 浅析友元  
+## 浅析友元 
+
 浅析友元，深入了解见[（第二部分深入了解模板）12.5 友元](#12.5友元)  
 
 ```C++
@@ -977,3 +980,85 @@ C++17 后，甚至可以为聚合类模板定义推断指引。
 - 可以定义聚合类模板。
 - 若声明为按值调用，则模板类型的调用参数会衰变。
 - 模板只能在全局/命名空间作用域或类声明中声明和定义。
+
+---
+
+# 非类型模板参数  
+
+对于函数和类模板来说，模板参数可以是**类型**，也可以是**普通值**。与使用类型参数的模板一样，定义在使用之前。**使用**这样的模板时，必须**显式地指定值**。
+
+## 类模板的非类型参数  
+
+- 通过使用固定大小的 `array` 来实现 `Stack`, 普通数值类型` std::size_t Maxsize `定义为模板参数, 指定了`Stack`内部`array` 的容量.
+- 在 `push()`中，可以使用它来检查`Stack`是否已满.
+- 使用这个类模板`Stack`，必须同时指定元素类型`T`和普通数值类型`Maxsize`.
+- 模板参数(普通数值类型`Maxsize`)可以指定默认值.
+*~basics/stacknontype.hpp~*
+```C++
+#include <array>
+#include <cassert>
+#include <iostream>
+#include <string>
+template<typename T, std::size_t Maxsize = 42>
+class Stack {
+private:
+    std::array<T, Maxsize> elems; // elements
+    std::size_t numElems; // current number of elements
+public:
+    Stack(); // constructor
+    void push(T const& elem);// push element
+    void pop();// pop element
+    T const& top() const;// return top element
+    bool empty() const { 
+        // return whether the stack is empty
+        return numElems == 0;
+    }
+    std::size_t size() const {
+        // return current number of elements
+        return numElems;
+    }
+};
+
+template<typename T, std::size_t Maxsize>
+Stack<T,Maxsize>::Stack ()
+: numElems(0) // start with no elements
+{
+// nothing else to do
+}
+
+template<typename T, std::size_t Maxsize>
+void Stack<T,Maxsize>::push (T const& elem)
+{
+    assert(numElems < Maxsize);
+    elems[numElems] = elem; // append element
+    ++numElems; // increment number of elements
+}
+template<typename T, std::size_t Maxsize>
+void Stack<T,Maxsize>::pop ()
+{
+assert(!elems.empty());
+--numElems; // decrement number of elements
+}
+template<typename T, std::size_t Maxsize>
+T const& Stack<T,Maxsize>::top () const
+{
+assert(!elems.empty());
+return elems[numElems-1]; // return last element
+}
+
+int main()
+{
+Stack<int,20> int20Stack; // stack of up to 20 ints
+Stack<int,40> int40Stack; // stack of up to 40 ints
+Stack<std::string,40> stringStack; // stack of up to 40 strings
+// manipulate stack of up to 20 ints
+int20Stack.push(7);
+std::cout << int20Stack.top() << '\n';
+int20Stack.pop();
+// manipulate stack of up to 40 strings
+stringStack.push("hello");
+std::cout << stringStack.top() << '\n';
+stringStack.pop();
+}
+```
+
