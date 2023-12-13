@@ -1,3 +1,8 @@
+|参考资料|
+|-|
+|[吴咏炜：现代 C++ 编程实战，“30 Coroutines:协作式的交叉调度执行”](https://time.geekbang.org/column/article/196785)|
+|[Cppreference.com: Coroutines](https://en.cppreference.com/w/cpp/language/coroutines)|
+|[一篇文章搞懂c++ 20 协程 Coroutine](https://zhuanlan.zhihu.com/p/615828280)|
 ### 什么是协程
 协程相关的关键字，有下面三个：
 * co_await
@@ -7,6 +12,20 @@
 一个协程里只能使用 co_return，不能使用 return。
 <b>这三个关键字只要有一个出现在函数中，这个函数就是一个协程</b>——从外部则看不出来，没有用其他语言常用的 async 关键字来标记（async 已经有其他用途,见***std::async*** ）。
 C++ 认为一个函数是否是一个协程是一个实现细节，不是对外接口的一部分。
+
+实际上C++ 的编译器如何识别协程函数呢？是通过**函数返回值类型**。
+C++ 协程函数的返回值类型有要求:
+* `协程状态` (coroutine state):记录协程状态，是分配于堆的内部对象：
+  ```
+  * 形参（协程函数的参数）
+  * 协程挂起的点
+  * 临时变量
+  ```
+* `承诺对象`（promise）: 从协程内部操纵。协程通过 promise_type 对象提交其结果或异常。
+* `协程句柄`（coroutine_handle）: 协程的唯一标示。用于恢复协程执行或销毁协程帧。
+
+C++ 协程函通过自定义等待体 Awaitable 来控制如何执行挂起的调度。
+* `Awaitable` or `Awaiter`: co_await 关键字调用的对象。
 
 ### co_await
 
@@ -28,12 +47,6 @@ auto result = __a.await_resume();
 如果 await_ready() 返回True，就代表不需要真正挂起，直接返回后面的结果就可以；（Q：是否执行await_resume()后，返回结果？）
 否则 await_ready() 返回False，返回执行 await_suspend 之后即挂起协程，等待协程被唤醒之后再返回 await_resume() 的结果。
 这样的一个表达式被称作是个[awaitable]( #awaitable-和-awaiter-的解释)。
-
-
-### awaitable 和 awaiter 的解释
-[cppreference的awaitable&&awaiter](https://en.cppreference.com/w/cpp/language/coroutines)
-ps:直接看英文，译文会丢失信息。
-![awaitable&&awaiter](./CoroutinesImages/awaitable&&awaiter.png)
 
 标准里定义了两个 awaitable，如下所示：
 ```c++
@@ -64,7 +77,13 @@ struct suspend_never {
 `suspend_always` 永远告诉调用者需要挂起;
 `suspend_never` 则永远告诉调用者不需要挂起。
 两者的 await_suspend 和 await_resume 都是平凡实现，不做任何实际的事情。
-一个 awaitable 可以*自行实现这些接口*，以**定制挂起之前和恢复之后**需要执行的操作.
+一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
+
+### awaitable 和 awaiter 的解释
+[cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
+ps:直接看英文，译文会丢失信息。
+![awaitable&&awaiter](./CoroutinesImages/awaitable&&awaiter.png)
+这里awaiter明显是重载决议获得，默认将`co_await expr`的expr视为await。[?]
 
 ### coroutine_handle
 coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码跟系统协程调度真正交互的地方
