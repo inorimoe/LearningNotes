@@ -134,5 +134,45 @@ final_suspend:
 co_await promise.yield_value(表达式);
 ```
 ---------------------------------------------
-极客时间coroutines阅读至uint64_resumable，待完善。
-
+### 协程状态（coroutine state）
+[?]
+### 协程函数返回值 Result 类型定义
+```C++
+class Task
+{
+public:
+    using co_handle = coroutine_handle<promise_type>;
+    struct promise_type {
+        //这5个是基本函数
+        auto get_return_object() { return Task{std::coroutine_handle<promise_type>::from_promise(*this)}; }
+        auto initial_suspend() { return std::suspend_always{}; }
+        auto final_suspend() { return std::suspend_always{}; }
+        void unhandled_exception() { std::terminate(); }
+        void return_void() {}
+        
+        // 带参数co_yield返回； 
+        auto yield_value(uint64_t value){ value_ = value; return suspend_always(); }
+        uint64_t value_;
+    };
+    explicit Task(co_handle handle) : handle_(handle) { }
+    ~Task(){ handle_.destroy(); }
+    Task(const Task&) = delete;
+    Task(Task&&) = default;
+public:
+//自定义函数
+    bool resume(){ if(!handle_.done()){ handle_.resume(); } return !handle_.done();}
+    uint64_t get(){ return handle_.promise().value_; }
+private:  
+    co_handle handle_;
+};
+```
+协程函数返回值`Result`类型,这里定义为 `Task`。结构内部有个 `promise_type`，而私有成员只有一个协程`句柄handle`。
+协程构造需要一个协程句柄，析构时将使用协程句柄来销毁协程；为简单起见，我们允许结构被移动，但不可复制（以免重复调用 `handle_.destroy()`）
+自定义函数：`resume()` 会判断协程是否已经结束，没结束就恢复协程的执行；当协程再次挂起时（调用者恢复执行），返回协程是否仍在执行中的状态。而 `get()` 简单地返回存储在 `promise` 对象中的数值。
+1. 结构里面只有一个数据成员 value_，存放供 Task::get 取用的数值。
+2. get_return_object 是第一个定制点。调用协程的返回值就是 get_return_object() 的结果。这儿就是使用 promise 对象来构造一个类型Task。
+3. initial_suspend 是第二个定制点。此处返回 suspend_always()，即协程立即挂起，调用者马上得到 get_return_object() 的结果。
+4. final_suspend 是第三个定制点。此处返回 suspend_always()，即使执行到了 co_return 语句，协程仍处于挂起状态。如果我们返回 suspend_never() 的话，那一旦执行了 co_return 或执行到协程结束，协程就会被销毁，连同已初始化的本地变量和 promise，并释放协程帧内存。
+5. yield_value 是第四个定制点。调用`co_yield`后会调用这个函数，可以保存co_yield的结果，其返回其返回值为std::suspend_always表示协程会挂起，如果返回std::suspend_never表示不挂起。这儿仅对 value_ 进行赋值，然后让协程挂起（执行控制回到调用者）。
+6. return_void 是第五个定制点。调用`co_return value`后会调用这个函数，可以保存`co_return`的结果。
+7. unhandled_exception 是第六个定制点。我们这儿也不应该发生任何异常，所以我们简单地调用 terminate 来终结程序的执行。
