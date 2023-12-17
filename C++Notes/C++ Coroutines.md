@@ -1,11 +1,20 @@
-|参考资料|
-|-|
-|[吴咏炜：现代 C++ 编程实战，“30 Coroutines:协作式的交叉调度执行”](https://time.geekbang.org/column/article/196785)|
-|[Cppreference.com: Coroutines](https://en.cppreference.com/w/cpp/language/coroutines)|
-|[一篇文章搞懂c++ 20 协程 Coroutine](https://zhuanlan.zhihu.com/p/615828280)|
-|[coroutines-cheatsheet.pdf](https://github.com/dawidpilarski/coroutine-cheatsheet/blob/master/coroutines-cheatsheet.pdf)|
-||
-### 什么是协程
+
+
+- [什么是协程](#什么是协程)
+- [co\_await](#co_await)
+- [awaitable 和 awaiter 的解释](#awaitable-和-awaiter-的解释)
+- [coroutine\_handle](#coroutine_handle)
+- [coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
+- [co\_yield](#co_yield)
+- [coroutine state 协程状态](#coroutine-state-协程状态)
+- [promise\_type](#promise_type)
+    - [协程函数返回值 returned\_type 类型定义](#协程函数返回值-returned_type-类型定义)
+    - [coroutine\_traits的协程特化](#coroutine_traits的协程特化)
+- [图解协程代码运行逻辑](#图解协程代码运行逻辑)
+- [有栈协程与无栈协程的区别](#有栈协程与无栈协程的区别)
+- [reference 参考资料](#reference-参考资料)
+
+## 什么是协程
 协程相关的关键字，有下面三个：
 * co_await
 * co_yield
@@ -29,7 +38,7 @@ C++ 协程函数的返回值类型有要求:
 C++ 协程函通过自定义等待体 Awaitable 来控制如何执行挂起的调度。
 * `Awaitable` or `Awaiter`: co_await 关键字调用的对象。
 
-### co_await
+## co_await
 
 一般co_await的使用如下。
 ```c++
@@ -76,7 +85,7 @@ struct suspend_never {
 两者的 await_suspend 和 await_resume 都是平凡实现，不做任何实际的事情。
 一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
 
-### awaitable 和 awaiter 的解释
+## awaitable 和 awaiter 的解释
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
 ps:直接看英文，译文会丢失信息。
 ![awaitable&&awaiter](./CoroutinesImages/awaitable&&awaiter.png)
@@ -92,7 +101,7 @@ coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码�
    2. 将协程的 Promise 对象视为"**协程状态控制器**"对象可能更容易，该对象控制协程的行为并可用于跟踪其状态。
 5. from_promise（静态）：通过 promise_type 对象的引用来生成一个协程句柄;
 
-## Coroutine body 协程体的简略执行逻辑
+## coroutine body 协程体的简略执行逻辑
 
 协程的执行过程大致是这个样子的：
 1. 为协程调用分配一个协程帧，含协程调用的参数、变量、状态、promise 对象等所需的空间。
@@ -130,7 +139,7 @@ coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码�
 co_await promise.yield_value(表达式);
 ```
 
-### 协程状态（coroutine state）
+## coroutine state 协程状态
 见[cppreference::coroutines::Execution](https://en.cppreference.com/w/cpp/language/coroutines)
 ![coroutine_state](./CoroutinesImages/coroutine_state.png)
 协程状态 (coroutine state)，它是一个动态存储分配（除非优化掉其分配）的内部对象，其包含：
@@ -293,7 +302,7 @@ Destructor called
 1. 如果全部换成std::suspend_never;
 Promise先析构，Coroutine等生命周期结束再析构。[待完善,参考图解协程的内容]
 
-### 有栈协程与无栈协程的区别
+## 有栈协程与无栈协程的区别
 **有栈协程:**
 有栈的协程跟纤程、goroutines 基本是一个概念，都是由用户自行调度的、操作系统之外的运行单元。每个这样的运行单元都有自己独立的栈空间，缺点当然就是栈的空间占用和切换栈的开销了。
 **无栈协程:**
@@ -302,3 +311,10 @@ C++20 的协程是无栈的。部分原因是有栈的协程可以使用纯库�
 一个简单的无栈协程调用的内存布局如下图所示：
 ![Alt text](./CoroutinesImages/noStackCoroutines.png)
 
+## reference 参考资料
+|参考资料|
+|-|
+|[吴咏炜：现代 C++ 编程实战，“30 Coroutines:协作式的交叉调度执行”](https://time.geekbang.org/column/article/196785)|
+|[Cppreference.com: Coroutines](https://en.cppreference.com/w/cpp/language/coroutines)|
+|[一篇文章搞懂c++ 20 协程 Coroutine](https://zhuanlan.zhihu.com/p/615828280)|
+|[coroutines-cheatsheet.pdf](https://github.com/dawidpilarski/coroutine-cheatsheet/blob/master/coroutines-cheatsheet.pdf)|
