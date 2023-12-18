@@ -86,10 +86,24 @@ struct suspend_never {
 一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
 
 ## awaitable 和 awaiter 的解释
+
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
 ps:直接看英文，译文会丢失信息。
 ![awaitable&&awaiter](./CoroutinesImages/awaitable&&awaiter.png)
-这里awaiter明显是重载决议获得，默认则将`co_await expr`的expr视为awaitable。
+
+<p style="color:red">[?]这一段感觉很怪，有可能理解 awaitable 和 awaiter 出现偏差，需要实现awaitable 和 awaiter 结构体代码检验。</p>
+
+首先，以下列方式将`co_await expr`的 expr（表达式） 视为 awaitable（可等待体）：
+* 如果 表达式 由初始暂停点、最终暂停点或 yield 表达式所产生，那么awaitable是 表达式 本身。
+* 否则，如果当前协程的承诺类型 Promise 拥有成员函数 await_transform，那么 awaitable 是 promise.await_transform(表达式)。
+* 否则，awaitable是 表达式 本身。
+
+然后以下列方式获得 awaiter（等待器）对象：
+* 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 awaiter 是该调用的结果:
+  * 对于成员重载为 `awaitable.operator co_await();`
+  * 对于非成员重载为 `operator co_await(static_cast<Awaitable&&>(awaitable));`
+* 否则，如果重载决议找不到 operator co_await，那么 awaiter 是 awaitable 本身。
+* 否则，如果重载决议有歧义，那么程序非良构。
 
 ## coroutine_handle
 coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码跟系统协程调度真正交互的地方，有下面这些成员函数会用到：
