@@ -102,7 +102,7 @@ ps:直接看英文，译文会丢失信息。
 * 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 awaiter 是该调用的结果:
   * 对于成员重载为 `awaitable.operator co_await();`
   * 对于非成员重载为 `operator co_await(static_cast<Awaitable&&>(awaitable));`
-* 否则，如果重载决议找不到 operator co_await，那么 awaiter 是 awaitable 本身。
+* 否则，<b> 如果重载决议找不到 operator co_await，那么 awaiter 是 awaitable 本身 </b>。
 * 否则，如果重载决议有歧义，那么程序非良构。
 
 ## coroutine_handle
@@ -332,3 +332,5 @@ C++20 的协程是无栈的。部分原因是有栈的协程可以使用纯库�
 |[Cppreference.com: Coroutines](https://en.cppreference.com/w/cpp/language/coroutines)|
 |[一篇文章搞懂c++ 20 协程 Coroutine](https://zhuanlan.zhihu.com/p/615828280)|
 |[coroutines-cheatsheet.pdf](https://github.com/dawidpilarski/coroutine-cheatsheet/blob/master/coroutines-cheatsheet.pdf)|
+|[Asymmetric Transfer](https://lewissbaker.github.io)|
+|[C++20 Coroutines — Complete* Guide](https://itnext.io/c-20-coroutines-complete-guide-7c3fc08db89d)|
