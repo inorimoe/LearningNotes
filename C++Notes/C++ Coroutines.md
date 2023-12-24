@@ -107,6 +107,7 @@ ps:直接看英文，译文会丢失信息。
 
 ## coroutine_handle
 coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码跟系统协程调度真正交互的地方，有下面这些成员函数会用到：
+
 1. destroy：销毁协程;
 2. done：判断协程是否已经执行完成;
 3. resume：让协程恢复执行;
@@ -114,6 +115,35 @@ coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码�
    1. 在某些用例中，协程 Promise 对象确实起着与 std::future 对的 std::promise 部分类似的作用，但对于其他用例，这种类比有些不适用。
    2. 将协程的 Promise 对象视为"**协程状态控制器**"对象可能更容易，该对象控制协程的行为并可用于跟踪其状态。
 5. from_promise（静态）：通过 promise_type 对象的引用来生成一个协程句柄;
+
+```C++
+namespace std::experimental
+{
+    template<typename Promise>
+    struct coroutine_handle;
+
+    template<>
+    struct coroutine_handle<void>
+    {
+        bool done() const;
+
+        void resume();
+        void destroy();
+
+        void* address() const;
+        static coroutine_handle from_address(void* address);
+    };
+
+    template<typename Promise>
+    struct coroutine_handle : coroutine_handle<void>
+    {
+        Promise& promise() const;
+        static coroutine_handle from_promise(Promise& promise);
+
+        static coroutine_handle from_address(void* address);
+    };
+}
+```
 
 ## coroutine body 协程体的简略执行逻辑
 
