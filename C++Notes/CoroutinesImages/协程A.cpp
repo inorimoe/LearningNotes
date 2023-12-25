@@ -1,5 +1,19 @@
 //
 //https://godbolt.org/z/5cshvjWh8
+//为了避免协程所有权混乱，注意协程类型仅允许移动构造;
+// Making Task move-only:
+/*
+Task(const Task&) = delete;
+Task& operator=(const Task&) = delete;
+Task(Task&& t) noexcept : coro_(t.coro_) { t.coro_ = {} }
+Task& operator=(Task&& t) noexcept {
+    if (this == &t) return *this;
+    if (coro_) coro_.destroy();
+    coro_ = t.coro_;
+    t.coro_ = {};
+    return *this;
+}
+*/
 //
 
 #include <coroutine>
