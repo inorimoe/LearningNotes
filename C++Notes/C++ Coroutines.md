@@ -4,13 +4,16 @@
 - [co\_await](#co_await)
 - [awaitable 和 awaiter 的解释](#awaitable-和-awaiter-的解释)
 - [coroutine\_handle](#coroutine_handle)
-- [coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
+- [Coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
 - [co\_yield](#co_yield)
 - [coroutine state 协程状态](#coroutine-state-协程状态)
 - [promise\_type](#promise_type)
     - [协程函数返回值 returned\_type 类型定义](#协程函数返回值-returned_type-类型定义)
     - [coroutine\_traits的协程特化](#coroutine_traits的协程特化)
-- [图解协程代码运行逻辑](#图解协程代码运行逻辑)
+- [协程执行流程图](#协程执行流程图)
+  - [图解协程代码运行逻辑](#图解协程代码运行逻辑)
+  - [图解 awaitable 运行逻辑](#图解-awaitable-运行逻辑)
+  - [图解 generator 运行逻辑](#图解-generator-运行逻辑)
 - [有栈协程与无栈协程的区别](#有栈协程与无栈协程的区别)
 - [reference 参考资料](#reference-参考资料)
 
@@ -89,14 +92,14 @@ struct suspend_never {
 
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
 ps:直接看英文，译文会丢失信息。
-![awaitable&&awaiter](./CoroutinesImages/awaitable&&awaiter.png)
+![awaitable&&awaiter](./Coroutines/Images/awaitable&&awaiter.png)
 
 <p style="color:red">[?]这一段感觉很怪，有可能理解 awaitable 和 awaiter 出现偏差，需要实现awaitable 和 awaiter 结构体代码检验。</p>
 
-首先，以下列方式将`co_await expr`的 expr（表达式） 视为 awaitable（可等待体）：
-* 如果 表达式 由初始暂停点、最终暂停点或 yield 表达式所产生，那么awaitable是 表达式 本身。
-* 否则，如果当前协程的承诺类型 Promise 拥有成员函数 await_transform，那么 awaitable 是 promise.await_transform(表达式)。
-* 否则，awaitable是 表达式 本身。
+首先，以下列方式将 <b>co_await expr</b> 的 `expr`（表达式） 视为 awaitable（可等待体）：
+* 如果 `expr`表达式 由 `initial suspend(初始挂起点)`、`final suspend(最终挂起点)` 或 `yield expression(yield 表示式)` 所产生，那么awaitable是 `expr`表达式 本身。
+* 否则，如果当前协程的承诺类型 Promise 拥有成员函数 await_transform，那么 awaitable 是 promise.await_transform(即`expr`表达式)。
+* 否则，awaitable是 `expr`表达式 本身。
 
 然后以下列方式获得 awaiter（等待器）对象：
 * 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 awaiter 是该调用的结果:
@@ -145,7 +148,7 @@ namespace std::experimental
 }
 ```
 
-## coroutine body 协程体的简略执行逻辑
+## Coroutine body 协程体的简略执行逻辑
 
 协程的执行过程大致是这个样子的：
 1. 为协程调用分配一个协程帧，含协程调用的参数、变量、状态、promise 对象等所需的空间。
@@ -185,7 +188,7 @@ co_await promise.yield_value(表达式);
 
 ## coroutine state 协程状态
 见[cppreference::coroutines::Execution](https://en.cppreference.com/w/cpp/language/coroutines)
-![coroutine_state](./CoroutinesImages/coroutine_state.png)
+![coroutine_state](./Coroutines/Images/coroutine_state.png)
 协程状态 (coroutine state)，它是一个动态存储分配（除非优化掉其分配）的内部对象，其包含：
 * 承诺对象
 * 各个形参（全部按值复制）
@@ -278,23 +281,28 @@ coroutine_traits 是 C++ 中协程相关的模板类，用于定义和定制协�
 coroutine_traits：https://en.cppreference.com/w/cpp/coroutine/coroutine_traits
 
 
-## 图解协程代码运行逻辑
-结合下面代码进行修改
-https://godbolt.org/z/f979oYznP
-[待完善,参考图解协程的内容]
+## 协程执行流程图
+### 图解协程代码运行逻辑
+![coroutineFlowChart](./Coroutines/Images/coroutineFlowChart.png)
+
+https://godbolt.org/z/qnx5xP5c4
+注意,以下协程代码在initial_suspned()和final_suspend()处挂起,协程函数体无挂起直接 co_return .
 ```C++
 #include <coroutine>
 #include <iostream>
+
 struct CoroutineTask {
     struct promise_type {
-        auto initial_suspend() { return std::suspend_never{}; }
+        auto initial_suspend() { 
+            std::cout << "initial_suspend called" << std::endl;
+            return std::suspend_always{}; }
         auto final_suspend() noexcept {
             std::cout << "final_suspend called" << std::endl;
             return std::suspend_always{};
         }
         CoroutineTask get_return_object() {
-            return CoroutineTask{
-                std::coroutine_handle<promise_type>::from_promise(*this)};
+            std::cout << "get_return_object called" << std::endl;
+            return CoroutineTask{std::coroutine_handle<promise_type>::from_promise(*this)};
         }
         void return_void() { std::cout << "co_return called" << std::endl; }
         void unhandled_exception() {}
@@ -303,11 +311,22 @@ struct CoroutineTask {
         }
     };
     std::coroutine_handle<promise_type> coro_handle;
-    CoroutineTask(std::coroutine_handle<promise_type> h) : coro_handle(h) {}
+
+    //为了避免协程所有权混乱，注意将协程类型仅允许移动构造;
+    // Making Task move-only:
+    CoroutineTask(std::coroutine_handle<promise_type> handle) : coro_handle(handle) {}
+    CoroutineTask(const CoroutineTask&) = delete;
+    CoroutineTask& operator=(const CoroutineTask&) = delete;
+    CoroutineTask(CoroutineTask&& task) noexcept : coro_handle(task.coro_handle){task.coro_handle = {};}
+    CoroutineTask& operator=(CoroutineTask&& task) noexcept{
+        if(this == &task) return *this;
+        if(coro_handle) coro_handle.destroy();
+        coro_handle = task.coro_handle;
+        task.coro_handle = {};
+        return *this;
+    }
     ~CoroutineTask() {
-        // 如果final_suspend返回std::suspend_never, 会自动析构Promise;
-        // 如果final_suspend返回std::suspend_always，则需下列这行destroy析构Promise以免泄露;
-        // if (coro_handle) coro_handle.destroy();
+        if (coro_handle) coro_handle.destroy();
         std::cout << "Destructor called" << std::endl;
     }
     void resume() {
@@ -315,36 +334,40 @@ struct CoroutineTask {
         coro_handle.resume();
     }
 };
-
 CoroutineTask simpleCoroutine() {
     std::cout << "Coroutine started" << std::endl;
-    co_await std::suspend_always{};
-    std::cout << "Coroutine resumed"
-              << std::endl;
     co_return;
 }
 
 int main() {
-    auto coro = simpleCoroutine();
     std::cout << "Main function" << std::endl;
+    auto coro = simpleCoroutine();
+    std::cout << "Main function resume coroutine" << std::endl;
     coro.resume();
     std::cout << "Main function end" << std::endl;
     return 0;
 }
---------------------------------------------------------
-执行结果：
-coroutine started
-Main function
+```
+代码的执行输出如下,可以看到符合流程图里挂起的执行路线.
+```shell
+// x86-64 clang 17.0.1 -std=c++20 -fcoroutines
+// x86-64 gcc 13.2  -std=c++20 -fcoroutines
+// clang 和 gcc 的运行输出相同
+get_return_object called
+initial_suspend called
+Main function resume coroutine
 Call Coroutine resume
-Coroutine resumed
+Coroutine started
 co_return called
 final_suspend called
 Main function end
+Promise Destructor called
 Destructor called
 ```
-[?] 问题一：将std::suspend_never 与 std::suspend_always 互换看看有什么不同;
-1. 如果全部换成std::suspend_never;
-Promise先析构，Coroutine等生命周期结束再析构。[待完善,参考图解协程的内容]
+### 图解 awaitable 运行逻辑
+[待完善]
+### 图解 generator 运行逻辑
+[待完善]
 
 ## 有栈协程与无栈协程的区别
 **有栈协程:**
@@ -353,7 +376,7 @@ Promise先析构，Coroutine等生命周期结束再析构。[待完善,参考�
 无栈的协程自己没有独立的栈空间，每个协程只需要一个很小的栈帧，空间占用小，也没有栈的切换开销。
 C++20 的协程是无栈的。部分原因是有栈的协程可以使用纯库方式实现，而无栈的协程需要一点编译器魔法帮忙。毕竟，协程里面的变量都是要放到堆上而不是栈上的。
 一个简单的无栈协程调用的内存布局如下图所示：
-![Alt text](./CoroutinesImages/noStackCoroutines.png)
+![Alt text](./Coroutines/Images/noStackCoroutines.png)
 
 ## reference 参考资料
 |参考资料|
