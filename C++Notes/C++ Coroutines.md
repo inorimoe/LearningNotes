@@ -2,7 +2,7 @@
 
 - [什么是协程](#什么是协程)
 - [co\_await](#co_await)
-- [awaitable 和 awaiter 的解释](#awaitable-和-awaiter-的解释)
+- [Awaitable 和 Awaiter 的解释](#awaitable-和-awaiter-的解释)
 - [coroutine\_handle](#coroutine_handle)
 - [Coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
 - [co\_yield](#co_yield)
@@ -12,7 +12,7 @@
     - [coroutine\_traits的协程特化](#coroutine_traits的协程特化)
 - [协程执行流程图](#协程执行流程图)
   - [图解协程代码运行逻辑](#图解协程代码运行逻辑)
-  - [图解 awaitable 运行逻辑](#图解-awaitable-运行逻辑)
+  - [图解 Awaitable 运行逻辑](#图解-awaitable-运行逻辑)
   - [图解 generator 运行逻辑](#图解-generator-运行逻辑)
 - [有栈协程与无栈协程的区别](#有栈协程与无栈协程的区别)
 - [reference 参考资料](#reference-参考资料)
@@ -47,7 +47,7 @@ C++ 协程函通过自定义等待体 Awaitable 来控制如何执行挂起的�
 ```c++
 auto result = co_await 表达式; //暂停执行直到恢复
 ```
-对于这里的**表达式**(expression)，编译器会把它理解为：
+对于这里co_await后的<a id="awaitable"><b>表达式</b>(expression)</a>，编译器会把它理解为：
 ```c++
 auto&& __a = 表达式;
 if (!__a.await_ready()) {
@@ -60,7 +60,7 @@ auto result = __a.await_resume();
 
 如果 await_ready() 返回True，就代表不需要真正挂起，直接返回后面的结果就可以；（Q：是否执行await_resume()后，返回结果？）
 否则 await_ready() 返回False，返回执行 await_suspend 之后即挂起协程，等待协程被唤醒之后再返回 await_resume() 的结果。
-这样的一个表达式被称作是个[awaitable]( #awaitable-和-awaiter-的解释)。
+<u>这样的一个"表达式"被称作是个[awaitable]( #awaitable-和-awaiter-的解释)。</u>
 
 标准里定义了两个 awaitable，如下所示：
 ```c++
@@ -88,7 +88,7 @@ struct suspend_never {
 两者的 await_suspend 和 await_resume 都是平凡实现，不做任何实际的事情。
 一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
 
-## awaitable 和 awaiter 的解释
+## Awaitable 和 Awaiter 的解释
 
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
 ps:直接看英文，译文会丢失信息。
@@ -96,16 +96,16 @@ ps:直接看英文，译文会丢失信息。
 
 <p style="color:red">[?]这一段感觉很怪，有可能理解 awaitable 和 awaiter 出现偏差，需要实现awaitable 和 awaiter 结构体代码检验。</p>
 
-首先，以下列方式将 <b>co_await expr</b> 的 `expr`（表达式） 视为 awaitable（可等待体）：
+首先，以下列方式将 <b>co_await expr</b> 的 `expr`（表达式） 视为 Awaitable（可等待体）：
 * 如果 `expr`表达式 由 `initial suspend(初始挂起点)`、`final suspend(最终挂起点)` 或 `yield expression(yield 表示式)` 所产生，那么awaitable是 `expr`表达式 本身。
-* 否则，如果当前协程的承诺类型 Promise 拥有成员函数 await_transform，那么 awaitable 是 promise.await_transform(即`expr`表达式)。
-* 否则，awaitable是 `expr`表达式 本身。
+* 否则，如果当前协程的承诺类型 `Promise` 拥有成员函数 `await_transform()`，那么 `Awaitable` 是 `promise.await_transform()`(即`expr`表达式)。<a id="Awaitable等价于promise.await_transform()"><a href="#await_transform()的定义">await_transform()的定义。</a></a>
+* 否则，`Awaitable` 是 `expr`表达式 本身。
 
-然后以下列方式获得 awaiter（等待器）对象：
-* 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 awaiter 是该调用的结果:
+然后以下列方式获得 `Awaiter`（等待器）对象：
+* 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 Awaiter 是该调用的结果:
   * 对于成员重载为 `awaitable.operator co_await();`
   * 对于非成员重载为 `operator co_await(static_cast<Awaitable&&>(awaitable));`
-* 否则，<b> 如果重载决议找不到 operator co_await，那么 awaiter 是 awaitable 本身 </b>。
+* 否则，<b> 如果重载决议找不到 operator co_await，那么 Awaiter 是 Awaitable 本身 </b>。
 * 否则，如果重载决议有歧义，那么程序非良构。
 
 ## coroutine_handle
@@ -190,14 +190,14 @@ co_await promise.yield_value(表达式);
 见[cppreference::coroutines::Execution](https://en.cppreference.com/w/cpp/language/coroutines)
 ![coroutine_state](./Coroutines/Images/coroutine_state.png)
 协程状态 (coroutine state)，它是一个动态存储分配（除非优化掉其分配）的内部对象，其包含：
-* 承诺对象
-* 各个形参（全部按值复制）
-* 当前暂停点的一些表示，使得程序在恢复时知晓要从何处继续，销毁时知晓有哪些局部变量在作用域内
-* 生存期跨过当前暂停点的局部变量和临时量
+* 承诺对象promise;
+* 各个形参（全部按值复制）;
+* 当前暂停点的一些表示，使得程序在恢复时知晓要从何处继续，销毁时知晓有哪些局部变量在作用域内;
+* 生存期跨过当前暂停点的局部变量和临时量;
 
 当协程开始执行时，它进行下列操作：
-* 用 operator new 分配协程状态对象
-* 将所有函数形参复制到协程状态中：按值传递的形参被移动或复制，按引用传递的参数保持为引用（因此，如果在被指代对象的生存期结束后恢复协程，它可能变成悬垂引用）
+* 用 operator new 分配**协程状态**对象;
+* 将所有函数形参复制到协程状态中：按值传递的形参被移动或复制，按引用传递的参数保持为引用（因此，如果在被指代对象的生存期结束后恢复协程，它可能变成悬垂引用）;
 
 ## promise_type
 promise_type被编译器用来控制协程的行为。有两种使用方式：应该将其定义为协程类型的成员
@@ -273,8 +273,8 @@ private:
 8. `unhandled_exception()`
    我们这儿也不应该发生任何异常，所以我们简单地调用 terminate 来终结程序的执行。
 
-9. `await_transform`
-    `await_transform()`是协程内部用于处理 co_await 表达式的函数。当在协程中使用 co_await 时，编译器会调用 await_transform() 来转换 co_await 表达式的操作数。
+9. `await_transform()`
+    `await_transform()`是协程内部用于处理 co_await 表达式的函数。当在协程中使用 co_await 时，编译器会调用 await_transform() 来转换 co_await 表达式的操作数。 <a id="await_transform()的定义"><a href="#Awaitable等价于promise.await_transform()">Awaitable 等价于 promise.await_transform()。</a></a>
 
 #### coroutine_traits的协程特化
 coroutine_traits 是 C++ 中协程相关的模板类，用于定义和定制协程的返回类型和 promise_type。通过特化 coroutine_traits 模板包括返回类型、promise_type 等, 来自定义协程的行为。
@@ -364,8 +364,27 @@ Main function end
 Promise Destructor called
 Destructor called
 ```
-### 图解 awaitable 运行逻辑
-[待完善]
+### 图解 Awaitable 运行逻辑
+
+由于<a href="#awaitable"> <u>co_await awaitable </u>的编译器实现逻辑 </a>, Awaitable 类型需要提供三种方法：
+```c++
+struct awaitable {
+    bool await_ready();
+    
+    // one of await_suspend:
+    void await_suspend(std::coroutine_handle<>) {}
+    bool await_suspend(std::coroutine_handle<>) {}
+    std::coroutine_handle<> await_suspend(std::coroutine_handle<>) {}
+    
+    void await_resume() {}
+};
+```
+https://www.iodraw.com/diagram/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=awaitable.iodraw#R5Vxbc5s4FP41zLQP8YAkbo9x4nS7bXd2t93t5imjGMVmi5FXyEncX78SdyHi4DiA3XqSCToIYc4537npEANerB7fMbxefqIBiQxgBo8GvDQAsCzPFn8kZZtRHGBlhAULg3xSRfgcfic50cypmzAgiTKRUxrxcK0S5zSOyZwrNMwYfVCn3dFIvesaL4hG%2BDzHkU79GgZ8mVE94Fb0X0i4WBZ3thw%2FO7PCxeT8SZIlDuhDjQRnBrxglPLsaPV4QSLJvIIvX99vv0Yfvznvfv0j%2BQ%2F%2FNf3w5be%2Fz7LFrva5pHwERmL%2B4qWJvfyAP11H7E%2F44f3N9SfrI7o9s2C29j2ONjnD8ofl24KDJBAMzYeU8SVd0BhHs4o6ZXQTB0TexxSjas5HSteCaAniv4Tzba4deMOpIC35KsrPZveUN2oI7ZknzucldMPmZNdj5oqH2YLwHfNAKVaBB0JXhLOtuI6RCPPwXv1yOFfMRTmvYr44yPm%2Fjyw0UczpDX7AIZd3k3%2FxbcpuTUIJZ%2FRbqd5A5a1Q27Wct3pcSIRP7iL6MF9ixiecsFUYY06ZmPawDDn5vMYpHx%2FEzPJG94Rx8vgCweiMLFYpIJXbFJQPHyqAWgVtWQNnQXt91qOfAgagIwzgqDDwjkIWguNs%2B099cC0Xm9jF8PIxXzwbbfPRscjQegKCnYWYX%2Fo7DWNeQdd2VOg6bgOT2RfLr6pU4ZwxvK1NW8sJyY77%2BOp9LGir3u2Z%2BY6jeENxkH2DSi9LnrxcVYGmqaWZnqRHN4zgYPvm7Ssa7YDMwySk8cAm23cntioQq8VoF8Fi3WjbvRlt%2BygMRd%2BAhx0Bj8Y02noYOaeCszyMiXzGTbImKZeBE4lnmN4ycbSQR8bMNrxLw7syZq5x7hmeoDiGd2F4wJh5xtQ2pq4m1Upm1hMw0OTTQxBjqYAo84Q6IOwhoxgAf0T9Rx313x5T%2F%2FX4sekJcgy8WeI4iEirRzgKtYbAn3RQbL%2FF0ven2PaoEWAt6LtWYr72CDAd%2FU5YKB6esIHCQtQ1xfXHhAnQbfmggtwvlG8VJHkMeaYUCMJ8LJezJqbl5uNqPTnY1gaDq4U5kFq8KMiH0FcsDfIGCNqRP4oOlmoDLFBTG3PiOvDo1MbuqDVwFLUBjqo20Eb9q42ebDDCNyyWbNqKXO200ztQ%2BI%2BCpW0%2BHzgtPt%2FuyVXAn6My7XREmjum23Y0UWRR7ISRZLMib94eZyjbKAkhp02nh0zQIDql8Kdv1Xc7qr43ho8pM%2Fch64mubvLgVf6jV040Sr3kckuWYRxIxU6RqhZhTCquMe%2FCOEyWcnyM4G3UmW3YVm5sAa%2FTG3h%2FjnKj1xGVB%2B8vHCQMfY%2BorvyZW%2BpYbbQNHxnnyJj5hucYvi7Uo4ADQEi1R217poM6M3Ac%2B3R948HvigezXX7D4MHfiYc5jiKRO75SijJa2wCyOgR0g%2FYNwJHrWRN3r8pk31ixulabDg3pDts3NHWw5ABJkZKUHqQlsTl1zNiOPTZmdPb%2FiH7D6lqQt8CBYHhRflOUWgu9cK1G9%2BB%2B8%2FvJhwoe7mywKICqx3rImF4a%2FkV64BnT87KdTgR%2F06nhQ7nV7M%2FSKeL8lQwEZTg4lcSjjAKRqW7NtUaBg%2B45W2BX5OHgleRMfJtkNs68pcH2h7OpbluxdNj%2BRb1Cd4WjRK9KC05wlb84ChexOJ4Ljsj9hankVyj84Hl%2BYhUGQWZySRJ%2Bz1pQU6Obmxixrj017Eu5lrCySWZwLcVGy9FdGEUXNJLSEt8E3qUfKeBU%2BrUzZvoRZ4TAg1B8rbarinOXISNznhbML4VNluyfBjgta%2FTc%2FuGqSlAWI2pK0KYDoLd8TPerX9hmZBXYX%2Biq0iwinCT5zcr%2B%2B3TwjfD5Mh8MIvCm7bWAHkkNKnDkjRE31ZIPYHr7ZB%2Bj9EXArvn7qCkJ1PP3W0rlZWfi9%2BhMuYK3%2FSHeF0IBaLQT2LpJbisZ94dQPX69p%2BKKEzPJirhVTejN2DbK%2F3Bs74pGSVJPqgWta9MI6ufNBOi4qsogMGk0J2SPoL2b8Gyyi5qbSk%2B85PBqLUp6KFdzB%2BNHdQfaf9WEKGFdX%2FYEmg3XULzxVbMn7qD2ZJRe7aoLzfWKZsW8Cw04xql2oaFDt16eMCjInFgOMMsPVO2LDSaO41cf52XGBqLGuj7qZGz2brZEDZfq7674PTO%2Fpy67QjfGcrPIqfvZM7Po6j02Zwu77tM7B2LjsLzmyX36MCY3RWvKaUXDO1KhvryX30Si7rzK1%2FEG8V5FYnUa0fCx%2BCn4Kp1sejt0s3f35YFvs%2Buta%2BD7tC%2FqHhqLYfW%2FNLLp1X8kgbP%2FAQ%3D%3D
+
+https://lewissbaker.github.io/2017/11/17/understanding-operator-co-await
+
+awaitable.await_suspend(handle);返回handle不理解可见：
+https://lewissbaker.github.io/2020/05/11/understanding_symmetric_transfer
 ### 图解 generator 运行逻辑
 [待完善]
 
