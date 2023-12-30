@@ -3,6 +3,8 @@
 - [什么是协程](#什么是协程)
 - [co\_await](#co_await)
 - [Awaitable 和 Awaiter 的解释](#awaitable-和-awaiter-的解释)
+  - [Cppreference的详解](#cppreference的详解)
+  - [自定义 Awaiter](#自定义-awaiter)
 - [coroutine\_handle](#coroutine_handle)
 - [Coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
 - [co\_yield](#co_yield)
@@ -47,7 +49,7 @@ C++ 协程函通过自定义等待体 Awaitable 来控制如何执行挂起的�
 ```c++
 auto result = co_await 表达式; //暂停执行直到恢复
 ```
-对于这里co_await后的<a id="awaitable"><b>表达式</b>(expression)</a>，编译器会把它理解为：
+对于这里 co_await 后的<a id="awaitable"><b>表达式</b>(expression)</a>，编译器会把它理解为：
 ```c++
 auto&& __a = 表达式;
 if (!__a.await_ready()) {
@@ -58,8 +60,9 @@ auto result = __a.await_resume();
 ```
 "表达式" 需要支持 `await_ready`、`await_suspend` 和 `await_resume` 三个接口。
 
-如果 await_ready() 返回True，就代表不需要真正挂起，直接返回后面的结果就可以；（Q：是否执行await_resume()后，返回结果？）
+如果 await_ready() 返回True，就代表不需要真正挂起，直接返回后面的结果就可以；
 否则 await_ready() 返回False，返回执行 await_suspend 之后即挂起协程，等待协程被唤醒之后再返回 await_resume() 的结果。
+由 await_resume() 返回 co_await 结果.
 <u>这样的一个"表达式"被称作是个[awaitable]( #awaitable-和-awaiter-的解释)。</u>
 
 标准里定义了两个 awaitable，如下所示：
@@ -89,12 +92,10 @@ struct suspend_never {
 一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
 
 ## Awaitable 和 Awaiter 的解释
-
+### Cppreference的详解
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
 ps:直接看英文，译文会丢失信息。
 ![awaitable&&awaiter](./Coroutines/Images/awaitable&&awaiter.png)
-
-<p style="color:red">[?]这一段感觉很怪，有可能理解 awaitable 和 awaiter 出现偏差，需要实现awaitable 和 awaiter 结构体代码检验。</p>
 
 首先，以下列方式将 <b>co_await expr</b> 的 `expr`（表达式） 视为 Awaitable（可等待体）：
 * 如果 `expr`表达式 由 `initial suspend(初始挂起点)`、`final suspend(最终挂起点)` 或 `yield expression(yield 表示式)` 所产生，那么awaitable是 `expr`表达式 本身。
@@ -108,6 +109,31 @@ ps:直接看英文，译文会丢失信息。
 * 否则，<b> 如果重载决议找不到 operator co_await，那么 Awaiter 是 Awaitable 本身 </b>。
 * 否则，如果重载决议有歧义，那么程序非良构。
 
+### 自定义 Awaiter
+实际上，对于 co_await <expr> 表达式当中 expr 的处理，C++ 有一套完善的流程：
+
+如果 promise_type 当中定义了 await_transform 函数，那么先通过 promise.await_transform(expr) 来对 expr 做一次转换，得到的对象称为 awaitable；否则 awaitable 就是 expr 本身。
+接下来使用 awaitable 对象来获取等待体（awaiter）。如果 awaitable 对象有 operator co_await 运算符重载，那么等待体就是 operator co_await(awaitable)，否则等待体就是 awaitable 对象本身。
+
+听上去，我们要么给 promise_type 实现一个 await_tranform() 函数，要么就为整型实现一个 operator co_await 的运算符重载，二者选一个就可以了。
+* 方案一: 实现 promise_type::await_tranform ;
+* 方案二: 实现 operator co_await的重载:
+    ```
+    auto operator co_await(T value) {
+    struct Awaiter {
+        T value;
+        bool await_ready() const noexcept {
+        return false;
+        }
+        void await_suspend(std::coroutine_handle<Generator::promise_type> handle) const {
+        handle.promise().value = value;
+        }
+        void await_resume() {  }
+    };
+    return IntAwaiter{.value = value};
+    }
+    ```
+
 ## coroutine_handle
 coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码跟系统协程调度真正交互的地方，有下面这些成员函数会用到：
 
@@ -117,7 +143,9 @@ coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码�
 4. promise_type：通过**实现**在协程**执行期间**的**特定点调用的方法**来**定义和控制**协程本身的行为。
    1. 在某些用例中，协程 Promise 对象确实起着与 std::future 对的 std::promise 部分类似的作用，但对于其他用例，这种类比有些不适用。
    2. 将协程的 Promise 对象视为"**协程状态控制器**"对象可能更容易，该对象控制协程的行为并可用于跟踪其状态。
-5. from_promise（静态）：通过 promise_type 对象的引用来生成一个协程句柄;
+5. address() / from_address():
+   1. .address() / from_address() 函数允许将 coroutine_handle 转换为/转换为一个 void* 指针。
+   2. 这主要是为了允许作为 "上下文 "参数传递到现有的 C 风格 API 中，因此在某些情况下，您可能会发现它在实现 Awaitable 类型时非常有用。
 
 ```C++
 namespace std::experimental
@@ -129,7 +157,6 @@ namespace std::experimental
     struct coroutine_handle<void>
     {
         bool done() const;
-
         void resume();
         void destroy();
 
@@ -380,6 +407,11 @@ struct awaitable {
 };
 ```
 https://www.iodraw.com/diagram/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=awaitable.iodraw#R5Vxbc5s4FP41zLQP8YAkbo9x4nS7bXd2t93t5imjGMVmi5FXyEncX78SdyHi4DiA3XqSCToIYc4537npEANerB7fMbxefqIBiQxgBo8GvDQAsCzPFn8kZZtRHGBlhAULg3xSRfgcfic50cypmzAgiTKRUxrxcK0S5zSOyZwrNMwYfVCn3dFIvesaL4hG%2BDzHkU79GgZ8mVE94Fb0X0i4WBZ3thw%2FO7PCxeT8SZIlDuhDjQRnBrxglPLsaPV4QSLJvIIvX99vv0Yfvznvfv0j%2BQ%2F%2FNf3w5be%2Fz7LFrva5pHwERmL%2B4qWJvfyAP11H7E%2F44f3N9SfrI7o9s2C29j2ONjnD8ofl24KDJBAMzYeU8SVd0BhHs4o6ZXQTB0TexxSjas5HSteCaAniv4Tzba4deMOpIC35KsrPZveUN2oI7ZknzucldMPmZNdj5oqH2YLwHfNAKVaBB0JXhLOtuI6RCPPwXv1yOFfMRTmvYr44yPm%2Fjyw0UczpDX7AIZd3k3%2FxbcpuTUIJZ%2FRbqd5A5a1Q27Wct3pcSIRP7iL6MF9ixiecsFUYY06ZmPawDDn5vMYpHx%2FEzPJG94Rx8vgCweiMLFYpIJXbFJQPHyqAWgVtWQNnQXt91qOfAgagIwzgqDDwjkIWguNs%2B099cC0Xm9jF8PIxXzwbbfPRscjQegKCnYWYX%2Fo7DWNeQdd2VOg6bgOT2RfLr6pU4ZwxvK1NW8sJyY77%2BOp9LGir3u2Z%2BY6jeENxkH2DSi9LnrxcVYGmqaWZnqRHN4zgYPvm7Ssa7YDMwySk8cAm23cntioQq8VoF8Fi3WjbvRlt%2BygMRd%2BAhx0Bj8Y02noYOaeCszyMiXzGTbImKZeBE4lnmN4ycbSQR8bMNrxLw7syZq5x7hmeoDiGd2F4wJh5xtQ2pq4m1Upm1hMw0OTTQxBjqYAo84Q6IOwhoxgAf0T9Rx313x5T%2F%2FX4sekJcgy8WeI4iEirRzgKtYbAn3RQbL%2FF0ven2PaoEWAt6LtWYr72CDAd%2FU5YKB6esIHCQtQ1xfXHhAnQbfmggtwvlG8VJHkMeaYUCMJ8LJezJqbl5uNqPTnY1gaDq4U5kFq8KMiH0FcsDfIGCNqRP4oOlmoDLFBTG3PiOvDo1MbuqDVwFLUBjqo20Eb9q42ebDDCNyyWbNqKXO200ztQ%2BI%2BCpW0%2BHzgtPt%2FuyVXAn6My7XREmjum23Y0UWRR7ISRZLMib94eZyjbKAkhp02nh0zQIDql8Kdv1Xc7qr43ho8pM%2Fch64mubvLgVf6jV040Sr3kckuWYRxIxU6RqhZhTCquMe%2FCOEyWcnyM4G3UmW3YVm5sAa%2FTG3h%2FjnKj1xGVB%2B8vHCQMfY%2BorvyZW%2BpYbbQNHxnnyJj5hucYvi7Uo4ADQEi1R217poM6M3Ac%2B3R948HvigezXX7D4MHfiYc5jiKRO75SijJa2wCyOgR0g%2FYNwJHrWRN3r8pk31ixulabDg3pDts3NHWw5ABJkZKUHqQlsTl1zNiOPTZmdPb%2FiH7D6lqQt8CBYHhRflOUWgu9cK1G9%2BB%2B8%2FvJhwoe7mywKICqx3rImF4a%2FkV64BnT87KdTgR%2F06nhQ7nV7M%2FSKeL8lQwEZTg4lcSjjAKRqW7NtUaBg%2B45W2BX5OHgleRMfJtkNs68pcH2h7OpbluxdNj%2BRb1Cd4WjRK9KC05wlb84ChexOJ4Ljsj9hankVyj84Hl%2BYhUGQWZySRJ%2Bz1pQU6Obmxixrj017Eu5lrCySWZwLcVGy9FdGEUXNJLSEt8E3qUfKeBU%2BrUzZvoRZ4TAg1B8rbarinOXISNznhbML4VNluyfBjgta%2FTc%2FuGqSlAWI2pK0KYDoLd8TPerX9hmZBXYX%2Biq0iwinCT5zcr%2B%2B3TwjfD5Mh8MIvCm7bWAHkkNKnDkjRE31ZIPYHr7ZB%2Bj9EXArvn7qCkJ1PP3W0rlZWfi9%2BhMuYK3%2FSHeF0IBaLQT2LpJbisZ94dQPX69p%2BKKEzPJirhVTejN2DbK%2F3Bs74pGSVJPqgWta9MI6ufNBOi4qsogMGk0J2SPoL2b8Gyyi5qbSk%2B85PBqLUp6KFdzB%2BNHdQfaf9WEKGFdX%2FYEmg3XULzxVbMn7qD2ZJRe7aoLzfWKZsW8Cw04xql2oaFDt16eMCjInFgOMMsPVO2LDSaO41cf52XGBqLGuj7qZGz2brZEDZfq7674PTO%2Fpy67QjfGcrPIqfvZM7Po6j02Zwu77tM7B2LjsLzmyX36MCY3RWvKaUXDO1KhvryX30Si7rzK1%2FEG8V5FYnUa0fCx%2BCn4Kp1sejt0s3f35YFvs%2Buta%2BD7tC%2FqHhqLYfW%2FNLLp1X8kgbP%2FAQ%3D%3D
+
+
+https://www.iodraw.com/diagram/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=awaitable.iodraw#R3Vxbc5s4FP41mmkf4gEkbo9xbHe7bXe6m7bZPGWIUWxajLwCx3F%2F%2FUogLkI4xYkxuJ6kRQdx0TnnOzcdB8Cr1dM76q2Xn4iPQ2Bo%2FhOAE2AYpuuyfzlhlxEM084ICxr4GUkvCdfBTyyImqBuAh%2FH0sSEkDAJ1jJxTqIIzxOJ5lFKtvK0BxLKT117C6wQrudeqFJvAj9ZZlTHsEv6HzhYLPMn65ZY8MrLJ4uVxEvPJ9sKCU4BvKKEJNnR6ukKh5x3OV9u3u9uwo8%2FrHd%2F%2Fh3%2F530df%2Fjy17eL7GazQy4plkBxlLz41thcfvA%2B3Yb0H%2Fjh%2Fd3tJ%2F0jur%2FQYXbvRy%2FcCIaJxSa7nIPYZwwVQ0KTJVmQyAunJXVMySbyMX%2BOxkblnI%2BErBlRZ8TvOEl2Qju8TUIYaZmsQnG25QIFI2KyoXP83KqEnnl0gZNn5om18gVWlEWw7x0mK5zQHZtAceglwaOsUZ5QzEUxr2Q%2BOxD8P0QWiijm5M7bekHCn8b%2F9%2B5TdisSihNKfhTqbci8ZWq75vNWTwsO8NFDSLbzpUeTUYLpKoi8hFA2bbsMEny99lLGbtnMg8XyiGmCn55lZH42h5SwKUgMtyVA9Zy2rIAzpx2f9eh3hIHREgZwWDBwBiELJgK6%2B7c6uOU3G5n5cPIkbp6NdmLUkwx1%2FdhCFJd%2BJkGUlNA1LRm6ll3DZPam4qpSFS4p9XaVaWs%2BIX7mOa78HB2asnf7xXwbSt6QHWRvUOplwZOXq6qhaGphpkfp0R3Fnr978%2FaIRtvH8yAOSHRik%2B3aI1MWiN5gtB1TNdpmZ0bbHIShODLgYUvAo0EZbTWMnBPG2SSIMF%2F0Jl7jlMuGFbJFje8pO1rwIzA1gTMBzgxMbXDpAIdRLOBcAccAUweMTTC2FamWMtP3wODF8jkgiNGNGiSKTKEKCfOUkDDgb4AA1BIB5qAQoEaQdV8gUPBm6UV%2BiBt9wiAUGxp1W880VlVst0GxOwvQ8xfoKQashH23UtTXHAOmo8%2BYBmzxmHYTGKK2Sa47KJgYqjU%2FqSAPC%2BYbBYmfgiRTCgShGPPb6SNNt8W4vB8f7CqDrtVC60stXhTmQ%2BhKlgY5Zk3FOgjbkduLDhZqY%2BhGRW20kW3BvtXGbKk1cBhqY1iy2kATda82arpBcbKhEefbjmVr553gGblDyVnaFMwaVoPPNztyFfC3rE1bLZFmD8ptW4oosih2RHG8WeE3b4cZytaKQshq0ulTFpohOqfw58iqb7dUfWcQPkY3a5VO6wQVRVs1eXAmftTaiUKpFl3u8TKIfK7YKVLlMoxG2DXaQxAF8ZKPhwjeWqXZhE0FxwbwWp2B97csODotUXn8HYZXCUPdJaoqf%2BaWWtYbTeAicInA1AWOBVxVqIOAg4GQbI%2Badk1P6syMYezUHRkPbls8aIPCg6vIosxOCOB6oTgLLwwxTU%2FNCshQRYLn1lyA9BZBX1N3QWdVedhzzWtkH1S9PDKe9LYVqaOHfa%2FbXdRUB7MHMA1xmbfiKh7dx2sBtLi4oCFXOneImVbD%2FkBXDTzXX2%2FQLCF31Pr%2BSGD4Xvu2nTfsP%2FbniWoKfEwoddPTATU5srCdmpj29HQcK%2BnJI8tn%2Byhy6KgBHQLjCXCv0gMHjC%2BLrjkW4Y3HwIV8R9mdplPY%2BRmP9njMN%2BbEYYZ6hlzetJt6LcxThnq6oVrDMtyWzR3PPYm%2FO3srZ8A9sOivTVEtw828MFZLz2yFicxfLwwWETueMybxTYQx50PAPNOlOLEKfD%2BzgjgOfmadpqkdFHUSdl9zDMwJvxczfHFmA3XJbPLRQxCGVyTk0mJvAh%2FSDxdwKv3KGS39sDNM4H7AXqvpqvzcJKB4nqRV8Qkzk5z9Y99Laxcdd3nYsqvTG5SgSQeMzpIuNS75Qjc9q8DhQpeVZhF6cSweVrTZp4MfOJkvxeAkAkdarc%2BtoffhpAJHTh%2BhTCV7MDTnkPThFM0PsG2SPqycAqpJ%2Bj0h%2FLIL9js4Uy7h7XCInyo6QqZqkpvqwt0hVI1fHwm74sxMsiRuWRM6M7a1Gj%2Fs27uiXvLGIfeZte0MyUHQ9RcQoGXLKoOKNtz8JtmalHRVuRVy9lQKT5T3IjWUq7iD%2FqO6V9p%2F2YRIYV1X9gRqNdeQf7GrYk%2Fsk9qTXhqyy1Yz28k7EkWrmWGBM2k1y9HRuUFB2ki3DK34QNm%2BmMbIstzyY73M2EBUu6%2BLWhmbgzsqUc2lutov3uvZ%2BR210uXK0pebRVbVz15oeetu33lN281469jYeF1es3czPojwXd5%2Fcl7R8DOpUFfey60jUXVexbfuTuK98sTqPKLhnvwU7KZdTe15rjfovjzwrbe2tQ189%2FuiV4TGjft5amSsaOJBOzV7C4xVwxCRCLeoOSqAbqt0%2B8PWep9qU2tPY0lDPwL0GwWgljTS72VOwaWdtlA5YGyl%2B2oT4MByO02c0hrarPb2n8z2dZ6c1EN0JVtkyPVkq2kvr8mqw8NFy3lZ%2FDmaDIrl3%2FSB0%2F8B
+
+https://godbolt.org/z/3roT8EMY1
 
 https://lewissbaker.github.io/2017/11/17/understanding-operator-co-await
 
