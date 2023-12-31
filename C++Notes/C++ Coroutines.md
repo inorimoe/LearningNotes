@@ -453,3 +453,4 @@ C++20 的协程是无栈的。部分原因是有栈的协程可以使用纯库�
 |[coroutines-cheatsheet.pdf](https://github.com/dawidpilarski/coroutine-cheatsheet/blob/master/coroutines-cheatsheet.pdf)|
 |[Asymmetric Transfer](https://lewissbaker.github.io)|
 |[C++20 Coroutines — Complete* Guide](https://itnext.io/c-20-coroutines-complete-guide-7c3fc08db89d)|
+|[渡劫 C++ 协程](https://www.bennyhuo.com/2022/03/06/cpp-coroutines-00-foreword/)|
