@@ -1,10 +1,10 @@
 
 
-- [什么是协程](#什么是协程)
+- [协程的概念](#协程的概念)
 - [co\_await](#co_await)
-- [Awaitable 和 Awaiter 的解释](#awaitable-和-awaiter-的解释)
-  - [Cppreference的详解](#cppreference的详解)
-  - [自定义 Awaiter](#自定义-awaiter)
+  - [Awaitable 和 Awaiter 的解释](#awaitable-和-awaiter-的解释)
+    - [cppreference的详解](#cppreference的详解)
+  - [自定义 co\_await](#自定义-co_await)
 - [coroutine\_handle](#coroutine_handle)
 - [Coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
 - [co\_yield](#co_yield)
@@ -19,7 +19,7 @@
 - [有栈协程与无栈协程的区别](#有栈协程与无栈协程的区别)
 - [reference 参考资料](#reference-参考资料)
 
-## 什么是协程
+## 协程的概念
 协程相关的关键字，有下面三个：
 * co_await
 * co_yield
@@ -91,48 +91,65 @@ struct suspend_never {
 两者的 await_suspend 和 await_resume 都是平凡实现，不做任何实际的事情。
 一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
 
-## Awaitable 和 Awaiter 的解释
-### Cppreference的详解
+### Awaitable 和 Awaiter 的解释
+#### cppreference的详解
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
-ps:直接看英文，译文会丢失信息。
+
 ![awaitable&&awaiter](./Coroutines/Images/awaitable&&awaiter.png)
+ps:建议先看英文，译文可能无法准确表达信息。
+1. 首先，以下列方式将 <b>co_await expr</b> 的 `expr`（表达式） 视为 Awaitable（可等待体）：
+   * 如果 `expr`表达式 由 `initial suspend(初始挂起点)`、`final suspend(最终挂起点)` 或 `yield expression(yield 表示式)` 所产生，那么awaitable是 `expr`表达式 本身。
+   * 否则，如果当前协程的承诺类型 `Promise` 拥有成员函数 `await_transform()`，那么 `Awaitable` 是 `promise.await_transform()`(即`expr`表达式)。<a id="Awaitable等价于promise.await_transform()"><a href="#await_transform()的定义">await_transform()的定义。</a></a>
+   * 否则，`Awaitable` 是 `expr`表达式 本身。
 
-首先，以下列方式将 <b>co_await expr</b> 的 `expr`（表达式） 视为 Awaitable（可等待体）：
-* 如果 `expr`表达式 由 `initial suspend(初始挂起点)`、`final suspend(最终挂起点)` 或 `yield expression(yield 表示式)` 所产生，那么awaitable是 `expr`表达式 本身。
-* 否则，如果当前协程的承诺类型 `Promise` 拥有成员函数 `await_transform()`，那么 `Awaitable` 是 `promise.await_transform()`(即`expr`表达式)。<a id="Awaitable等价于promise.await_transform()"><a href="#await_transform()的定义">await_transform()的定义。</a></a>
-* 否则，`Awaitable` 是 `expr`表达式 本身。
+2. 然后以下列方式获得 `Awaiter`（等待器）对象：
+   * 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 Awaiter 是该调用的结果:
+     * 对于成员重载为 `awaitable.operator co_await();`
+     * 对于非成员重载为 `operator co_await(static_cast<Awaitable&&>(awaitable));`
+   * 否则，<b> 如果重载决议找不到 operator co_await，那么 Awaiter 是 Awaitable 本身 </b>。
+   * 否则，如果重载决议有歧义，那么程序非良构。
 
-然后以下列方式获得 `Awaiter`（等待器）对象：
-* 如果针对 operator co_await 的重载决议给出单个最佳重载，那么 Awaiter 是该调用的结果:
-  * 对于成员重载为 `awaitable.operator co_await();`
-  * 对于非成员重载为 `operator co_await(static_cast<Awaitable&&>(awaitable));`
-* 否则，<b> 如果重载决议找不到 operator co_await，那么 Awaiter 是 Awaitable 本身 </b>。
-* 否则，如果重载决议有歧义，那么程序非良构。
-
-### 自定义 Awaiter
+### 自定义 co_await
 实际上，对于 co_await <expr> 表达式当中 expr 的处理，C++ 有一套完善的流程：
 
 如果 promise_type 当中定义了 await_transform 函数，那么先通过 promise.await_transform(expr) 来对 expr 做一次转换，得到的对象称为 awaitable；否则 awaitable 就是 expr 本身。
-接下来使用 awaitable 对象来获取等待体（awaiter）。如果 awaitable 对象有 operator co_await 运算符重载，那么等待体就是 operator co_await(awaitable)，否则等待体就是 awaitable 对象本身。
+接下来使用 Awaitable 对象来获取 Awaiter 。如果 Awaitable 对象有 operator co_await 运算符重载，那么 Awaiter 就是 operator co_await(awaitable)，否则 Awaiter 就是 awaitable 对象本身。
 
-听上去，我们要么给 promise_type 实现一个 await_tranform() 函数，要么就为整型实现一个 operator co_await 的运算符重载，二者选一个就可以了。
-* 方案一: 实现 promise_type::await_tranform ;
-* 方案二: 实现 operator co_await的重载:
+听上去，我们要么给 promise_type 实现一个 await_transform() 函数，要么就为 Awaitable 实现一个 operator co_await 的运算符重载，二者选一个就可以了。
+* 方案一: 实现 promise_type::await_transform ;
     ```
-    auto operator co_await(T value) {
-    struct Awaiter {
-        T value;
-        bool await_ready() const noexcept {
-        return false;
+    struct Generator {
+        struct promise_type {
+            ...
+            std::suspend_always await_transform(int value) {
+                this->value = value;
+                return {};
+            }
+            ...
         }
-        void await_suspend(std::coroutine_handle<Generator::promise_type> handle) const {
-        handle.promise().value = value;
-        }
-        void await_resume() {  }
-    };
-    return IntAwaiter{.value = value};
     }
     ```
+* 方案二: 实现 operator co_await的重载:
+    ```
+    struct Awaiter {
+        bool await_ready() const noexcept {
+            return false;
+        }
+        void await_suspend(std::coroutine_handle<Generator::promise_type> handle) const { }
+        void await_resume() {  }
+        
+        //auto operator co_await();
+    };
+    ---
+    //重载决议，二选一：
+    //成员重载
+    auto Awaiter::operator co_await(){ return *this; }
+    //非成员重载
+    auto operator co_await(Awaiter&&) {
+        return Awaiter{};
+    }
+    ```
+注意，由于C++不允许基本类型定义运算符重载，类似`co_await static_cast<int>(0)`只能使用方案一的`promise_type::await_transform(int value)`。
 
 ## coroutine_handle
 coroutine_handle 是 C++ 标准库提供的类模板。这个类是用户代码跟系统协程调度真正交互的地方，有下面这些成员函数会用到：
