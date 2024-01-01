@@ -2,9 +2,10 @@
 
 - [协程的概念](#协程的概念)
 - [co\_await](#co_await)
-  - [Awaitable 和 Awaiter 的解释](#awaitable-和-awaiter-的解释)
-    - [cppreference的详解](#cppreference的详解)
-  - [自定义 co\_await](#自定义-co_await)
+  - [Awaitable 和 Awaiter](#awaitable-和-awaiter)
+    - [cppreference 的详解](#cppreference-的详解)
+    - [简述 Awaitable 和 Awaiter](#简述-awaitable-和-awaiter)
+  - [自定义 Awaiter](#自定义-awaiter)
 - [coroutine\_handle](#coroutine_handle)
 - [Coroutine body 协程体的简略执行逻辑](#coroutine-body-协程体的简略执行逻辑)
 - [co\_yield](#co_yield)
@@ -14,8 +15,7 @@
     - [coroutine\_traits的协程特化](#coroutine_traits的协程特化)
 - [协程执行流程图](#协程执行流程图)
   - [图解协程代码运行逻辑](#图解协程代码运行逻辑)
-  - [图解 Awaitable 运行逻辑](#图解-awaitable-运行逻辑)
-  - [图解 generator 运行逻辑](#图解-generator-运行逻辑)
+  - [图解 co\_await 运行逻辑](#图解-co_await-运行逻辑)
 - [有栈协程与无栈协程的区别](#有栈协程与无栈协程的区别)
 - [reference 参考资料](#reference-参考资料)
 
@@ -63,7 +63,7 @@ auto result = __a.await_resume();
 如果 await_ready() 返回True，就代表不需要真正挂起，直接返回后面的结果就可以；
 否则 await_ready() 返回False，返回执行 await_suspend 之后即挂起协程，等待协程被唤醒之后再返回 await_resume() 的结果。
 由 await_resume() 返回 co_await 结果.
-<u>这样的一个"表达式"被称作是个[awaitable]( #awaitable-和-awaiter-的解释)。</u>
+这样的一个"表达式"被称作是个 awaitable 。
 
 标准里定义了两个 awaitable，如下所示：
 ```c++
@@ -75,7 +75,7 @@ struct suspend_always {
   void await_suspend( coroutine_handle<> ) const noexcept {}
   void await_resume() const noexcept {}
 };
-
+----------
 struct suspend_never {
   bool await_ready() const noexcept
   {
@@ -91,8 +91,8 @@ struct suspend_never {
 两者的 await_suspend 和 await_resume 都是平凡实现，不做任何实际的事情。
 一个 awaitable 可以*自行实现这些接口*`await_ready`、`await_suspend` 和 `await_resume`，以定制对应的**挂起之前、如何挂起、恢复之后**需要执行的操作.
 
-### Awaitable 和 Awaiter 的解释
-#### cppreference的详解
+### Awaitable 和 Awaiter 
+#### cppreference 的详解
 [cppreference的awaitable&&awaiter介绍，在co_await讲解里面。](https://en.cppreference.com/w/cpp/language/coroutines)
 
 ![awaitable&&awaiter](./Coroutines/Images/awaitable&&awaiter.png)
@@ -109,15 +109,43 @@ ps:建议先看英文，译文可能无法准确表达信息。
    * 否则，<b> 如果重载决议找不到 operator co_await，那么 Awaiter 是 Awaitable 本身 </b>。
    * 否则，如果重载决议有歧义，那么程序非良构。
 
-### 自定义 co_await
-实际上，对于 co_await <expr> 表达式当中 expr 的处理，C++ 有一套完善的流程：
+#### 简述 Awaitable 和 Awaiter
 
-如果 promise_type 当中定义了 await_transform 函数，那么先通过 promise.await_transform(expr) 来对 expr 做一次转换，得到的对象称为 awaitable；否则 awaitable 就是 expr 本身。
-接下来使用 Awaitable 对象来获取 Awaiter 。如果 Awaitable 对象有 operator co_await 运算符重载，那么 Awaiter 就是 operator co_await(awaitable)，否则 Awaiter 就是 awaitable 对象本身。
+实际上，对于 `co_await <expr>` 表达式当中 `<expr>` 的处理:
 
-听上去，我们要么给 promise_type 实现一个 await_transform() 函数，要么就为 Awaitable 实现一个 operator co_await 的运算符重载，二者选一个就可以了。
-* 方案一: 实现 promise_type::await_transform ;
-    ```
+1、 如果 promise 类型有一个名为 `await_transform` 的成员，那么首先将 `<expr>` 传递到对 `promise.await_transform(<expr>)` 的调用中以获取 Awaitable 类型 awaitable 。否则，如果 promise 类型没有 await_transform 成员，那么我们直接使用 `<expr>` 的求值结果作为 Awaitable 对象 awaitable。
+
+2、 接下来使用 Awaitable 对象来获取 Awaiter 。如果 Awaitable 对象（awaitable）有 operator co_await 运算符重载，那么 Awaiter 就是 operator co_await(awaitable)，否则 Awaiter 就是 awaitable 对象本身。
+
+如果我们将这些规则用code描述成函数 get_awaitable() 和 get_awaiter() ，它们可能看起来像这样：
+```C++
+template<typename P, typename T>
+decltype(auto) get_awaitable(P& promise, T&& expr)
+{
+  if constexpr (has_any_await_transform_member_v<P>)
+    return promise.await_transform(static_cast<T&&>(expr));
+  else
+    return static_cast<T&&>(expr);
+}
+
+template<typename Awaitable>
+decltype(auto) get_awaiter(Awaitable&& awaitable)
+{
+  if constexpr (has_member_operator_co_await_v<Awaitable>)
+    return static_cast<Awaitable&&>(awaitable).operator co_await();
+  else if constexpr (has_non_member_operator_co_await_v<Awaitable&&>)
+    return operator co_await(static_cast<Awaitable&&>(awaitable));
+  else
+    return static_cast<Awaitable&&>(awaitable);
+}
+```
+
+### 自定义 Awaiter
+
+根据前文，我们要么给 promise_type 实现一个返回 awaitable 的 await_transform() 函数，要么就为 Awaitable 实现一个 operator co_await 的运算符重载，二者选一个就可以了。
+
+* 方案一: 实现返回 awaitable 的 promise_type::await_transform() 函数;
+    ```C++
     struct Generator {
         struct promise_type {
             ...
@@ -130,7 +158,7 @@ ps:建议先看英文，译文可能无法准确表达信息。
     }
     ```
 * 方案二: 实现 operator co_await的重载:
-    ```
+    ```C++
     struct Awaiter {
         bool await_ready() const noexcept {
             return false;
@@ -330,9 +358,9 @@ coroutine_traits：https://en.cppreference.com/w/cpp/coroutine/coroutine_traits
 ![coroutineFlowChart](./Coroutines/Images/coroutineFlowChart.png)
 
 https://godbolt.org/z/qnx5xP5c4
-注意,以下协程代码在initial_suspned()和final_suspend()处挂起,协程函数体无挂起直接 co_return .
+注意,以下协程代码在initial_suspned()和final_suspend()处挂起, 在协程函数体 coroutine body 无挂起直接 co_return .
 ```C++
-#include <coroutine>
+#include <coroutine>    
 #include <iostream>
 
 struct CoroutineTask {
@@ -408,9 +436,9 @@ Main function end
 Promise Destructor called
 Destructor called
 ```
-### 图解 Awaitable 运行逻辑
+### 图解 co_await 运行逻辑
 
-由于<a href="#awaitable"> <u>co_await awaitable </u>的编译器实现逻辑 </a>, Awaitable 类型需要提供三种方法：
+由于前文<a href="#awaitable"> <u>co_await awaitable </u></a>的实现逻辑, Awaitable 类型需要提供三种方法：
 ```c++
 struct awaitable {
     bool await_ready();
@@ -424,16 +452,57 @@ struct awaitable {
 };
 ```
 
-![返回coroutine_handle需要研究下
-](./Coroutines/Images/awaitable.png)
+因此，假设我们已将把 `<expr>` 结果转化为 Awaiter 对象的逻辑封装到上述函数中，那么 `co_await <expr>` 的语义可以（大致）翻译如下：
+
+```C++
+{
+  auto&& value = <expr>;
+  auto&& awaitable = get_awaitable(promise, static_cast<decltype(value)>(value));
+  auto&& awaiter = get_awaiter(static_cast<decltype(awaitable)>(awaitable));
+
+  if (!awaiter.await_ready())
+  {
+    using coroutine_handle = std::coroutine_handle<promise_type>::from_promise(promise));
+    using await_suspend_result_t = decltype(awaiter.await_suspend(coroutine_handle));
+
+    <suspend coroutine> //挂起当前协程
+
+    if (std::is_void_v<await_suspend_result_t>)
+    {
+        awaiter.await_suspend(coroutine_handle);
+        <return to caller/resumer> // 协程外部,
+    }
+    else if (std::is_bool_v<await_suspend_result_t>)
+    {
+        auto await_suspend_result = awaiter.await_suspend(coroutine_handle);
+        if(await_suspend_result == true)
+            <return to caller/resumer> // 协程外部
+    }
+    else{ 
+        auto another_coro_handle = awaiter.await_suspend(coroutine_handle);
+        another_coro_handle.resume();
+        <return to caller/resumer> // 协程外部
+    }
+
+    <resume-point> //唤醒当前协程
+  }
+
+  return awaiter.await_resume();
+}
+```
+await_suspend() 有三种返回值：
+
+* 如果返回值为 void，将会直接跳转到当前协程的调用方；
+* 如果返回值为 bool，那么为 true 时，会跳转到当前协程的调用方；为 false 时，会恢复当前协程；
+* 如果返回值为 coroutine_handle，那么就会跳转到其它的协程，亦即其它协程将被恢复。
+
+<b>非对称转移</b>：协程的调用者在恢复的协程执行时在堆栈上保持活动状态。当此协程下次挂起并且对该挂起点调用await_suspend()返回void（指示无条件挂起）或true（指示有条件挂起）时，调用 handle.resume() 后将返回给协程的调用者。这可以被认为是执行到协程的“非对称转移”，其行为就像普通的函数调用一样。
+
+<b>对称转移</b>：如果返回值为 coroutine_handle，我们只是暂停一个协程并恢复另一个协程。两个协程之间不存在隐式的调用者/被调用者关系 - 当协程挂起时，它可以将执行转移到任何挂起的协程（包括其自身），并且在下次挂起或完成时不一定必须将执行转移回前一个协程。
+只要通过 handle.resume() 便能恢复协程。由此，我们可以就此构成了一个循环链。当协程函数执行完毕或通过 co_return 返回，将打破循环。
+
+![coroutine_handle](./Coroutines/Images/awaitable.png)
 https://godbolt.org/z/rTe1Gdvnh
-
-https://lewissbaker.github.io/2017/11/17/understanding-operator-co-await
-
-awaitable.await_suspend(handle);返回handle不理解可见：
-https://lewissbaker.github.io/2020/05/11/understanding_symmetric_transfer
-### 图解 generator 运行逻辑
-[待完善]
 
 ## 有栈协程与无栈协程的区别
 **有栈协程:**
