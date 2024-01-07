@@ -478,7 +478,8 @@ struct awaitable {
         if(await_suspend_result == true)
             <return to caller/resumer> // 协程外部
     }
-    else{ 
+    else
+    { 
         auto another_coro_handle = awaiter.await_suspend(coroutine_handle);
         another_coro_handle.resume();
         <return to caller/resumer> // 协程外部
