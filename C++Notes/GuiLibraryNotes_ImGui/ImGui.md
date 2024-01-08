@@ -41,3 +41,13 @@ git clone https://github.com/ocornut/imgui.git -b docking <file_name>  #docking
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxgi.lib")
 ```
+
+### 中文字体
+Windows 系统是从 “控制面板 \ 外观和个性化 \ 字体” 处，得到文件位置。
+```c++
+    ImFont* font = io.Fonts->AddFontFromFileTTF(
+            "C:\\Users\\Inori\\AppData\\Local\\Microsoft\\Windows\\Fonts\\LXGWWenKai-Regular.ttf",
+            25.0f, nullptr, io.Fonts->GetGlyphRangesChineseFull()
+        );
+    ImGui::Text(u8"This is some useful text.");  //注意UTF8格式
+```
