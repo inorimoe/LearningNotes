@@ -47,6 +47,41 @@ print("%d, %s, %.*f"%(varInt , varString,  varFloat)) out写法，占位符%_与
 |13|`not` `or` `and`	|逻辑运算符|
 |14|`=` `+=` `-=` `*=` `/=` `%=` `//=` `**=` `&=` |`=`  `^=`   `>>=` `<<=`|
 
+## 分支语句
+* `if...elif...else...`结构 或 `if...else...`结构
+* py 使用了缩进的方式来表示代码的层次结构
+```py
+if x > 0:
+    ...
+elif x > -1:
+    ...
+elif x < -10:
+    ...
+else:
+    ...
+```
 
-// 开始day3
-https://github.com/jackfrued/Python-100-Days/blob/master/Day01-15/03.%E5%88%86%E6%94%AF%E7%BB%93%E6%9E%84.md
+## 循环语句
+* `for ... in ...`语句
+* `while True/False/statement`
+```py
+sum = 0
+for x in range(101):
+    sum += x
+print(sum)
+------
+range(n): 产生[0, n);
+range(n, m): 产生[n, m);
+range(n, m, i): 产生[n, m), i是递增递减的值；
+-------------
+sum2 = 0
+while True:
+    ...
+    sum2 += 1
+    break
+print(sum2)
+```
+
+## 函数与模块
+#### day 06
+https://github.com/jackfrued/Python-100-Days/blob/master/Day01-15/06.%E5%87%BD%E6%95%B0%E5%92%8C%E6%A8%A1%E5%9D%97%E7%9A%84%E4%BD%BF%E7%94%A8.md
