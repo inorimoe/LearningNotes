@@ -192,8 +192,8 @@ import module3
 * python 使用了缩进的方式来表示代码的层次结构
 * 变量的生命周期取决于代码的层次结构（类似C）
 
-如果要给函数内的全局变量赋值，必须使用 global 关键字标识。
-使用nonlocal关键字来指示变量来自于嵌套作用域，即 nonlocal 语句使列出的标识符，引用除global变量外的作用域中的以前绑定的变量。
+如果要给函数内的全局变量赋值，必须使用 `global` 关键字标识。
+使用 `nonlocal` 关键字来指示变量来自于嵌套作用域，即 `nonlocal` 语句标识出以前引用绑定的变量, 在除global变量外的作用域中。
 
 ```py
 count = 1
@@ -220,3 +220,97 @@ print(cnt)
 1
 888
 ```
+
+## 字符串  
+1. python 字符串用`'`和`"`进行标识。
+```python
+str1 = 'hello, world!'
+str2 = "hello, world!"
+str3 = """             
+        hello, 
+        world!
+        # 以三个双引号或单引号开头的字符串可以折行
+        """
+```
+2. python 在字符串中使用`\`来表示转义字符，语法规则与C一致。  
+3. python字符串运算符 与 语法糖：
+    - `+` 运算符实现字符串的 __拼接__。
+    - `*` 运算符来 __重复__ 一个字符串。
+    - `in` 和 `not in` 来判断一个字符串是否 __包含__ 另外一个字符串。
+    - `[]` 和 `[:]` 运算符从字符串取出某个字符或某些字符, 进行 __切片__ 操作。
+```python
+运算符：
+s1 = 'hello ' * 3          # s1 == 'hello hello hello '
+print('good' in s1)        # False
+
+str = "abc123456"
+print(str[2])               # c
+# 字符串切片(从指定的开始索引到指定的结束索引)
+print(str[2:5])             # c12
+print(str[2:])              # c123456
+print(str[2::2])            # c246
+print(str[::2])             # ac246
+print(str[::-1])            # 654321cba
+print(str[-3:-1])           # 45
+
+语法糖：
+str1 = 'hello, world!'
+# 通过内置函数len计算字符串的长度
+print(len(str1))  # 13
+
+# 获得字符串首字母大写的拷贝
+print(str1.capitalize()) # Hello, world!
+
+# 获得字符串每个单词首字母大写的拷贝
+print(str1.title()) # Hello, World!
+
+# 获得字符串变大写后的拷贝
+print(str1.upper()) # HELLO, WORLD!
+
+# 从字符串中查找子串所在位置
+print(str1.find('or')) # 8
+print(str1.find('shit')) # -1
+
+# 与find类似但找不到子串时会引发异常
+# print(str1.index('or'))
+# print(str1.index('shit'))
+
+# 检查字符串是否以指定的字符串开头
+print(str1.startswith('He')) # False
+print(str1.startswith('hel')) # True
+
+# 检查字符串是否以指定的字符串结尾
+print(str1.endswith('!')) # True
+
+# 将字符串以指定的宽度居中并在两侧填充指定的字符
+print(str1.center(50, '*'))
+
+# 将字符串以指定的宽度靠右放置左侧填充指定的字符
+print(str1.rjust(50, ' '))
+
+str2 = 'abc123456'
+# 检查字符串是否由数字构成
+print(str2.isdigit())  # False
+
+# 检查字符串是否以字母构成
+print(str2.isalpha())  # False
+
+# 检查字符串是否以数字和字母构成
+print(str2.isalnum())  # True
+
+str3 = '  123456789   '
+print(str3)
+# 获得字符串修剪左右两侧空格之后的拷贝
+print(str3.strip())
+```
+
+4. python 字符串的格式化输出：
+```python
+a, b = 5, 10
+
+print('%d * %d = %d' % (a, b, a * b))           #  "..." %（...）
+print('{0} * {1} = {2}'.format(a, b, a * b))    #  "...".format(...)
+print(f'{a} * {b} = {a * b}')                   #  f"...{var1}...{var2}...{var3}"
+```
+
+## 列表
