@@ -314,3 +314,178 @@ print(f'{a} * {b} = {a * b}')                   #  f"...{var1}...{var2}...{var3}
 ```
 
 ## 列表
+pyhton 列表：
+- 将列表的元素放在[]中，多个元素用, 进行分隔。
+- 可以使用for循环对列表元素进行遍历。
+- 可以使用 `[]` 或 `[:]` 运算符取出列表中的一个或多个元素。
+
+### 列表的增删查改
+```python
+初始化
+list = [1,3,5,7]
+
+重复
+list2 = list * 3      # [1,2,3,1,2,3,1,2,3]
+
+长度
+len(list)                   # 4
+
+下标
+list[0]                     # 1
+list[3]                     # 7
+list[99]                    # IndexError: list index out of range
+list[-1]                    # 7
+
+循环：
+1、下标遍历：
+for index in range(len(list)):
+    print(list[index])
+2、for遍历：
+for elem in list:
+    print(elem)
+3、enumerate函数遍历：
+for index, elem in enumrate(list):
+    print(index, elem)
+
+添加、插入
+list.append(999)
+list.insert(1, 999)
+
+合并
+list.extend([111,222,333])
+list += [111,222,333]
+
+查
+if 999 in list :
+    ...
+
+删除
+1、删除指定数值：
+list.remove(999)
+2、在指定位置删除元素
+list.pop(0)
+list.pop(len(list)-1)
+3、清空列表
+list.clear()
+```
+
+### 列表的切片
+
+```python
+fruits = ['grape', 'apple', 'strawberry', 'waxberry']
+fruits += ['pitaya', 'pear', 'mango']
+print(fruits)
+
+#切片:
+fruits2 = fruits[1:3]
+print(fruits2)
+fruits3 = fruits[-3:-1]
+print(fruits3)
+
+# 通过完整切片操作来复制列表
+fruits4 = fruits[:]
+print(fruits4)
+# 步长设置-1，获得倒装列表
+fruits5 = fruits[::-1]
+print(fruits5)
+
+--- print out ---
+['grape', 'apple', 'strawberry', 'waxberry', 'pitaya', 'pear', 'mango']
+['apple', 'strawberry']
+['pitaya', 'pear']
+['grape', 'apple', 'strawberry', 'waxberry', 'pitaya', 'pear', 'mango']
+['mango', 'pear', 'pitaya', 'waxberry', 'strawberry', 'apple', 'grape']
+```
+
+### 列表的排序
+
+```python
+list = ['orange', 'apple', 'zoo', 'inter','nation', 'blueberry']
+
+# sorted 函数返回排序后的列表拷贝
+list2 = sorted(list)
+print(list2)
+
+# 逆序
+print( sorted(list, reverse= True) )
+
+# 通过 key 关键字参数指定排序类型，默认字母表顺序 or 字符串长度
+list3 = sorted(list, key=len)
+print(list3)
+
+# 直接在列表原对象上进行排序
+list.sort(reverse=True)
+print(list)
+
+--- print out ---
+['apple', 'blueberry', 'inter', 'nation', 'orange', 'zoo']
+['zoo', 'orange', 'nation', 'inter', 'blueberry', 'apple']
+['zoo', 'apple', 'inter', 'orange', 'nation', 'blueberry']
+['zoo', 'orange', 'nation', 'inter', 'blueberry', 'apple']
+```
+### 列表的生成式语法
+```python
+import sys
+f = [x for x in range(1, 10)]
+print(f)
+f = [x + y for x in 'ABCDE' for y in '1234567']
+print(f)
+# 用列表的生成表达式语法创建列表容器
+# 用这种语法创建列表之后元素已经准备就绪所以需要耗费较多的内存空间
+f = [x ** 2 for x in range(1, 100)]
+print(sys.getsizeof(f))  # 查看对象占用内存的字节数
+print(len(f))
+
+--- print out ---
+
+[1, 2, 3, 4, 5, 6, 7, 8, 9]
+['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'B1', 'B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'E1', 'E2', 'E3', 'E4', 'E5', 'E6', 'E7']
+920
+99
+```
+
+## 生成器
+在Python中，这种一边循环一边计算的机制，称为生成器：generator
+初始化：
+1、只要把一个列表生成式的[]改成()，就创建了一个generator：
+```py
+L = [x * x for x in range(10)]  # L 是列表
+g = (x * x for x in range(10))  # g 是生成器：generator
+```
+2、如果一个函数定义中包含yield关键字，那么这个函数就不再是一个普通函数，而是一个generator函数，调用一个generator函数将返回一个generator：
+```py
+def fib(max):
+    n, a, b = 0, 0, 1
+    while n < max:
+        yield b
+        a, b = b, a + b
+        n = n + 1
+    return 'done'
+
+gn = fib(number)   # gn 是 generator
+```
+执行：
+1、在每次调用next()的时候执行，遇到yield语句返回，再次执行时从上次返回的yield语句处继续执行。
+2、通过next()函数获得generator的下一个返回值。
+```py
+cnt = 3 
+gn = fib(cnt)
+rgn = fib(cnt)
+for ret in gn:
+    print(ret)
+for index in range(cnt):
+    print(next(rgn))
+lgn = fib(10)
+print(list(lgn))
+
+--- prit out ---
+1
+1
+2
+1
+1
+2
+[1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+```
+
+# 元组、集合、字典
