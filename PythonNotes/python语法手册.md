@@ -424,6 +424,14 @@ print(list)
 ['zoo', 'orange', 'nation', 'inter', 'blueberry', 'apple']
 ```
 ### 列表的生成式语法
+列表生成式的基本语法：
+```py
+基本语法结构：
+ [表达式 for 变量 in 可迭代对象] 
+or 加入条件判断：
+ [表达式 for 变量 in 可迭代对象 if 条件]
+```
+列表生成式的用法：
 ```python
 import sys
 f = [x for x in range(1, 10)]
@@ -466,7 +474,7 @@ gn = fib(number)   # gn 是 generator
 ```
 执行：
 1、在每次调用next()的时候执行，遇到yield语句返回，再次执行时从上次返回的yield语句处继续执行。
-2、通过next()函数获得generator的下一个返回值。
+2、通过调用next()函数获得generator的下一个返回值。
 ```py
 cnt = 3 
 gn = fib(cnt)
@@ -487,5 +495,127 @@ print(list(lgn))
 2
 [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
 ```
+# 元组
+Python中的元组是一种容器数据类型，与列表的区别在于其不可变的特性。
+元组的创建：
+```python
+# 使用圆括号创建元组
+tup = (1, 2, 3)
+print(tup)  # 输出：(1, 2, 3)
 
-# 元组、集合、字典
+# 使用tuple()函数创建元组
+tup = tuple([1, 2, 3])
+print(tup)  # 输出：(1, 2, 3)
+
+# 直接使用逗号创建元组
+tup = 1, 2, 3
+print(tup)  # 输出：(1, 2, 3)
+
+# 创建空元组
+empty_tup = ()
+print(empty_tup)  # 输出：()
+
+# 注意赋值的情况
+value = （1）
+print(value)   # 输出：1 ，注意这种括号内单个元素，会退化成赋值
+
+# 读取元组的元素
+print(tup[0])
+
+# 遍历元组中的值
+for member in tup:
+    print(member)
+
+# 元组的不可变性
+tup[0] = -1 # 错误，无法修改，提示TypeError
+
+# 元组可以重新赋值，原来元组被垃圾回收
+tup = (2, 3, 4)
+
+# 元组可以类型转换成列表
+lst = list(tup)
+
+# 同理，列表可以类型转换成元组
+tup = tuple(lst)
+
+# 注意，不可修改的特性只存在于定义的那层级
+tup = (1, [3,4,5], 3)
+tup[1][1] = -1
+print(tup)  # 输出：(1, [3, -1, 5], 3) ,元素列表的元素可被修改 
+
+```
+
+# 集合
+Python中的集合跟数学上的集合是一致的，不允许有重复元素，而且可以进行交集、并集、差集等运算。
+```py
+# 创建集合：可以使用set()函数或者大括号 {} 来创建一个集合。
+s = set([1, 2, 3, 4, 5])
+set1 = {1, 2, 3, 4, 5}
+set2 = set(range(1, 10))    
+set3 = set((1, 2, 3, 3, 2, 1))
+set4 = {num for num in range(1, 100) if num % 3 == 0 or num % 5 == 0}
+
+# 添加元素：使用 add() 方法可以添加单个元素，update() 方法可以添加多个元素。
+s.add(6)
+s.update([7, 8, 9])
+
+# 删除元素：remove() 方法可以删除指定的元素，如果元素不存在会抛出错误。discard() 方法也可以删除指定的元素，但如果元素不存在，它不会抛出错误。
+s.remove(6)
+s.discard(7)
+
+# 检查元素：可以使用 in 关键字来检查元素是否存在于集合中。
+if 1 in s:
+    print("1 is in the set")
+
+# 集合运算：集合支持并集（union）、交集（intersection）、差集（difference）和对称差集（symmetric_difference）等运算。
+s1 = {1, 2, 3}
+s2 = {2, 3, 4}
+print(s1.union(s2))                 # 并集 {1, 2, 3, 4}
+print(s1.intersection(s2))          # 交集 {2, 3}
+print(s1.difference(s2))            # 差集 {1}
+print(s1.symmetric_difference(s2))  # 对称差集 {1, 4}
+```
+
+# 字典
+在Python中，字典（dict）是一种可变的、可索引的、无序的数据类型，它存储键值对（key-value pairs）。
+- 字典的键必须是不可变的类型，如字符串、数字或元组。
+- 字典的值可以是任何Python数据类型。
+```py
+# 创建字典：
+    # 通常写法：
+    d = {'name': 'John', 'age': 30, 'city': 'New York'}
+    # 创建字典的构造器语法
+    items1 = dict(one=1, two=2, three=3, four=4)
+    # 通过zip函数将两个序列压成字典
+    items2 = dict(zip(['a', 'b', 'c'], '123'))
+    # 创建字典的推导式语法
+    items3 = {num: num ** 2 for num in range(1, 10)}
+
+# 访问元素：可以通过键来访问字典中的值。
+    # 普通写法：
+    print(d['name'])  # 输出 'John'
+    # get() 方法：不会引发 KeyError 异常
+    dict.get(key, default=None) # 访问指定kv对
+        1、key：要从字典中检索的键。
+        2、default（可选）：如果字典中不存在该键，将返回此默认值。如果没有指定，默认值为 None。
+# 修改元素：可以通过键来修改字典中的值。
+d['age'] = 31
+# 添加元素：可以通过新的键来添加元素。
+d['job'] = 'Engineer'
+# 删除元素：del语句可以删除字典中的元素，clear()方法可以清空字典。
+    # 普通写法
+    del d['age']
+    d.clear()
+    # pop方法
+    dict.popitem()   # 弹出字典尾部元素
+    dict.pop(key, default=None)  # 删除指定kv对
+        1、key：要从字典中删除并返回其值的键。
+        2、default（可选）：如果字典中不存在该键，将返回此默认值。如果没有指定，默认值为 None。
+# 检查键是否存在：可以使用in关键字来检查键是否存在于字典中。
+if 'name' in d:
+    print("Key 'name' is in the dictionary")
+#获取所有键和值：keys()方法可以返回所有的键，values()方法可以返回所有的值，items()方法可以返回所有的键值对。
+print(d.keys())
+print(d.values())
+print(d.items())
+```
