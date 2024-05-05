@@ -1,5 +1,35 @@
-# Python 语法手册
+- [Python 语法手册](#python-语法手册)
+- [基础语法](#基础语法)
+  - [变量和类型](#变量和类型)
+  - [命名规则](#命名规则)
+  - [基础类型转换](#基础类型转换)
+  - [基础IO函数](#基础io函数)
+  - [运算符](#运算符)
+  - [分支语句](#分支语句)
+  - [循环语句](#循环语句)
+  - [函数](#函数)
+    - [函数定义](#函数定义)
+    - [函数参数](#函数参数)
+    - [模块管理函数](#模块管理函数)
+  - [模块](#模块)
+  - [变量的生命周期以及作用域](#变量的生命周期以及作用域)
+  - [字符串](#字符串)
+  - [列表](#列表)
+    - [列表的增删查改](#列表的增删查改)
+    - [列表的切片](#列表的切片)
+    - [列表的排序](#列表的排序)
+    - [列表的生成式语法](#列表的生成式语法)
+  - [生成器](#生成器)
+  - [元组](#元组)
+  - [集合](#集合)
+  - [字典](#字典)
+- [面向对象（Object-Oriented Programming）](#面向对象object-oriented-programming)
+  - [类（Class）](#类class)
+  - [创建和运行对象](#创建和运行对象)
+  - [类成员访问可见性](#类成员访问可见性)
 
+# Python 语法手册
+# 基础语法
 ## 变量和类型
 Python中的数据类型很多，而且允许自定义新的数据类型，以下是几种常用的数据类型：
 * 整型：Python中可以处理任意大小的整数。
@@ -495,7 +525,7 @@ print(list(lgn))
 2
 [1, 1, 2, 3, 5, 8, 13, 21, 34, 55]
 ```
-# 元组
+## 元组
 Python中的元组是一种容器数据类型，与列表的区别在于其不可变的特性。
 元组的创建：
 ```python
@@ -542,10 +572,9 @@ tup = tuple(lst)
 tup = (1, [3,4,5], 3)
 tup[1][1] = -1
 print(tup)  # 输出：(1, [3, -1, 5], 3) ,元素列表的元素可被修改 
-
 ```
 
-# 集合
+## 集合
 Python中的集合跟数学上的集合是一致的，不允许有重复元素，而且可以进行交集、并集、差集等运算。
 ```py
 # 创建集合：可以使用set()函数或者大括号 {} 来创建一个集合。
@@ -576,7 +605,7 @@ print(s1.difference(s2))            # 差集 {1}
 print(s1.symmetric_difference(s2))  # 对称差集 {1, 4}
 ```
 
-# 字典
+## 字典
 在Python中，字典（dict）是一种可变的、可索引的、无序的数据类型，它存储键值对（key-value pairs）。
 - 字典的键必须是不可变的类型，如字符串、数字或元组。
 - 字典的值可以是任何Python数据类型。
@@ -618,4 +647,78 @@ if 'name' in d:
 print(d.keys())
 print(d.values())
 print(d.items())
+```
+
+# 面向对象（Object-Oriented Programming）
+
+## 类（Class）
+
+1. __init__是python类的构造函数。
+2. 类变量：是所有类对象共有，即静态变量。
+3. 实例变量：是所属对象的实例私有。
+4. 类变量在实例会被同名的实例变量覆盖。
+
+```py
+
+class Student(object):
+    # 类变量
+    var = 42  
+
+    def __init__(self, name, weight):
+        # 实例变量
+        self.name = name
+        self.weight = weight
+
+    def study(self, course_name, minutes):
+        self.var = minutes
+        print('%s正在学习%s, 花了%s分钟.' % (self.name, course_name, self.var))
+
+```
+
+## 创建和运行对象
+```py
+def main():
+    stu = Student("小学生", 200)
+    stu.study("负重", 10)
+    print (stu.var)
+
+    stu2 = Student("中学生", 400)
+    print ("共有的类变量为：%d"%stu2.var) # 共有的类变量
+    
+    Student.var = 99
+    print ("类变量被修改为：%d"%stu2.var) # 类变量被修改
+
+if __name__ == '__main__':
+    main()
+```
+
+## 类成员访问可见性
+1. 公开（Public）：
+   1. 如果一个变量名或方法名没有前缀下划线，那么它就是公开的。
+   2. 这意味着这些变量和方法可以被类的实例以及类的外部直接访问。
+2. 受保护（Protected）：
+   1. 如果一个变量名或方法名以单下划线` _ `开头，那么它就是受保护的。
+   2. 这意味着这些变量和方法<b>不推荐不应该</b>被类的外部访问，但是在Python中并<b>没有强制限制</b>.
+3. 私有（Private）：
+   1. 如果一个变量名或方法名以双下划线` __ `开头，那么它就是私有的。
+   2. 这意味着这些变量和方法<b>不能</b>被类的外部直接访问。
+4. 私有特性：
+   1. Python并没有真正实现私有，而是通过改变名字（Name Mangling）的方式来实现的。
+   2. `__variable`会被改变为`_ClassName__variable12`。
+```py
+class TestIsVisible(object):
+    def __init__(self, visible, invisible, non_know):  
+        self.visible = visible
+        self.__invisible = invisible
+        self._visible = non_know
+
+visible_object = TestIsVisible("can see",  "can not see",  "non know if visible")
+print(visible_object.visible)  # 输出: can see
+print(visible_object._visible)  # 输出: non know if visible
+print(visible_object.__dict__)  # 输出: {'visible': 'can see', '_TestIsVisible__invisible': 'can not see', '_visible': 'non know if visible'}
+print(visible_object._TestIsVisible__invisible)  # 输出: can not see
+"""
+" visible是公开的，_visible是受保护的，__invisible是私有的。
+" 尽管__invisible是私有的，但我们仍然可以通过_TestIsVisible__invisible来访问它
+"""
 ```
