@@ -27,6 +27,8 @@
   - [类（Class）](#类class)
   - [创建和运行对象](#创建和运行对象)
   - [类成员访问可见性](#类成员访问可见性)
+  - [@property装饰器](#property装饰器)
+  - [`__slots__`语法](#__slots__语法)
 
 # Python 语法手册
 # 基础语法
@@ -654,9 +656,10 @@ print(d.items())
 ## 类（Class）
 
 1. __init__是python类的构造函数。
-2. 类变量：是所有类对象共有，即静态变量。
-3. 实例变量：是所属对象的实例私有。
-4. 类变量在实例会被同名的实例变量覆盖。
+2. 成员函数的首参数需要设置为self。
+3. 类变量：是所有类对象共有，即静态变量。
+4. 实例变量：是所属对象的实例私有。
+5. 类变量在实例会被同名的实例变量覆盖。
 
 ```py
 
@@ -722,3 +725,52 @@ print(visible_object._TestIsVisible__invisible)  # 输出: can not see
 " 尽管__invisible是私有的，但我们仍然可以通过_TestIsVisible__invisible来访问它
 """
 ```
+
+## @property装饰器
+
+@property装饰器：用于为访问保护属性定义method（即getter访问器、setter设置器和deleter删除器），使得访问属性不用加括号`（）`;
+* getter标识: @property
+* setter标识: @属性名.setter
+* deleter标识: @属性名.deleter
+
+```py
+class MyClass:
+    def __init__(self, x):
+        self._x = x
+
+    @property         # Getters 访问器
+    def x(self):
+        return self._x
+
+    @x.setter         # Setters 设置器
+    def x(self, value):
+        self._x = value
+
+    @x.deleter        # Deleters 删除器
+    def x(self):
+        del self._x
+
+obj = MyClass(42)
+obj.x += 1
+print(obj.x)
+del obj.x
+```
+## `__slots__`语法
+在Python中，`__slots__`是一个特殊的类属性，通过限制实例的动态属性，用于优化实例的内存使用和提高性能。
+Python解释器就不需要为每个实例动态创建一个字典（`__dict__`）来存储属性，而是为每个实例分配固定的内存空间来存储这些属性。
+基本用法：要使用`__slots__`，只需在类定义中添加一个包含属性名称的元组或列表即可。
+
+```py
+class MyClass:
+    __slots__ = ('name', 'age')
+
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+```
+
+注意事项：
+* 使用`__slots__`会限制实例的动态属性。一旦为类定义了`__slots__`，除非在`__slots__`中声明，否则实例不能动态地添加新属性。
+- `__slots__`应该谨慎使用，特别是在定义子类时。如果子类没有定义`__slots__`，但父类有，那么子类实例仍然会有一个`__dict__`，因为子类需要存储继承自父类的任何属性。
+* 对于需要频繁添加或删除属性的对象，或者需要完全动态属性的对象，使用`__slots__`可能不是最佳选择。
+
